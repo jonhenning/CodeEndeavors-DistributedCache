@@ -1,0 +1,13 @@
+# git ignore file
+*.pdb
+*.user
+*.cache
+*.zip
+*.suo
+redist/*.dll
+redist/*.pdb
+bin/
+obj/
+packages/
+Documentation/_build/
+Documentation/publish/

@@ -1,0 +1,15 @@
+{
+  "commands": {
+    "build": {
+      "fileName": "cmd.exe",
+      "workingDirectory": "./_build/.",
+      "arguments": "/c build.cmd"
+    },
+    "serve": {
+      "fileName": "cmd.exe",
+      "workingDirectory": "./_build/.",
+      "arguments": "/c serve.cmd"
+    }
+  },
+  "-vs-binding": {"AfterBuild": ["build"]}
+}
