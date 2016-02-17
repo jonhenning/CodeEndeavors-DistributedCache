@@ -51,7 +51,7 @@ namespace CodeEndeavors.Distributed.Cache.Client
             return GetCacheEntry<T>(cacheName, cacheKey, lookupFunc, null);
         }
 
-        public static T GetCacheEntry<T>(string cacheName, string cacheKey, Func<T> lookupFunc, ExpandoObject monitorOptions)
+        public static T GetCacheEntry<T>(string cacheName, string cacheKey, Func<T> lookupFunc, dynamic monitorOptions)
         {
             var cache = getCache(cacheName);
             
