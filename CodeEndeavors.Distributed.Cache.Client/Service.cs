@@ -1,6 +1,4 @@
 ﻿using CodeEndeavors.Distributed.Cache.Client.Extensions;
-using StructureMap;
-using StructureMap.Graph;
 using CodeEndeavors.Extensions;
 using System;
 using System.Collections.Concurrent;
@@ -11,6 +9,8 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Runtime.Caching;
 using System.Dynamic;
+using System.IO;
+using System.Reflection;
 
 namespace CodeEndeavors.Distributed.Cache.Client
 {
@@ -54,7 +54,7 @@ namespace CodeEndeavors.Distributed.Cache.Client
         public static T GetCacheEntry<T>(string cacheName, string cacheKey, Func<T> lookupFunc, ExpandoObject monitorOptions)
         {
             var cache = getCache(cacheName);
-
+            
             T item = default(T);
 
             if (!cache.GetExists<T>(cacheKey, out item))
@@ -251,7 +251,7 @@ namespace CodeEndeavors.Distributed.Cache.Client
                         var typeName = connectionDict.GetSetting("cacheType", "CodeEndeavors.Distributed.Cache.Client.InMemory.InMemoryCache");
                         var clientId = connectionDict.GetSetting("clientId", Guid.NewGuid().ToString());
 
-                        var cache = getInstanceByTypeName<ICache>(typeName);
+                        var cache = typeName.GetInstance<ICache>();
 
                         if (cache.Initialize(cacheName, clientId, connectionDict.GetSetting("notifierName", ""), connection))
                         {
@@ -285,7 +285,7 @@ namespace CodeEndeavors.Distributed.Cache.Client
                         var typeName = connectionDict.GetSetting("notifierType", "CodeEndeavors.Distributed.Cache.Client.SignalRNotifier");
                         var clientId = connectionDict.GetSetting("clientId", Guid.NewGuid().ToString());
 
-                        var notifier = getInstanceByTypeName<INotifier>(typeName);
+                        var notifier = typeName.GetInstance<INotifier>();
                         if (notifier.Initialize(clientId, connection))
                         {
                             _notifiers[name] = notifier;
@@ -322,7 +322,7 @@ namespace CodeEndeavors.Distributed.Cache.Client
             if (!_monitors.ContainsKey(key))
             {
                 var typeName = optionDict.GetSetting("monitorType", "CodeEndeavors.Distributed.Cache.Client.File.FileMonitor");
-                IMonitor monitor = getInstanceByTypeName<IMonitor>(typeName);
+                var monitor = typeName.GetInstance<IMonitor>();
                 if (monitor.Initialize(cacheName, cacheKey, cacheItemKey, options))
                 {
                     monitor.OnExpire += onCacheExpire;
@@ -372,23 +372,6 @@ namespace CodeEndeavors.Distributed.Cache.Client
             if (notifier != null)
                 return notifier;
             throw new Exception("Notifier not registered: " + name);
-        }
-        private static T getInstanceByTypeName<T>(string typeName)
-        {
-            var path = AppDomain.CurrentDomain.BaseDirectory;
-            var container = new Container(_ =>
-            {
-                _.Scan(x =>
-                {
-                    x.WithDefaultConventions();
-                    x.AssembliesFromPath(path);
-                    x.Include(type => type.FullName.StartsWith(typeName));
-                    x.AddAllTypesOf<T>();
-                });
-            });
-            Debug.WriteLine(container.WhatDidIScan());
-            Debug.WriteLine(container.WhatDoIHave());
-            return container.GetInstance<T>();
         }
 
         private static void onNotifierMessage(string clientId, string message)

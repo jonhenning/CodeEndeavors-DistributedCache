@@ -1,0 +1,47 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <RootDir>$(MSBuildProjectDirectory)\..</RootDir>
+        <RedistDir>$(RootDir)\redist</RedistDir>
+        <RootDir>$(MSBuildProjectDirectory)\..</RootDir>
+        <CommonLibDir>$(RootDir)\lib</CommonLibDir>
+        <CommonBinDir>$(CommonLibDir)</CommonBinDir>
+        <MSBuildTasksDir>$(CommonBinDir)\MSBuildTasks</MSBuildTasksDir>
+        <DeployDir></DeployDir>
+    </PropertyGroup>
+    <ItemGroup>
+        <DeployDirs Include="$(DeployDir)" />
+    </ItemGroup>
+
+    <!-- Import to use Common Targets\Tasks -->
+    <Import Project="$(MSBuildTasksDir)\MSBuild.Community.Tasks.Targets"/>
+    <Target Name="AfterBuild">
+        <CallTarget Targets="CreateSetupPackage" />
+        <CallTarget Targets="Deploy" />
+    </Target>
+
+    <Target Name="CleanRedistDir">
+        <MakeDir Directories="$(RedistDir)"/>
+        <CreateItem Include="$(RedistDir)\$(MSBuildProjectName).zip;">
+            <Output TaskParameter="Include" ItemName="ExistingRedists" />
+        </CreateItem>
+        <Delete Files="@(ExistingRedists)" TreatErrorsAsWarnings="true" />
+    </Target>
+
+    <Target Name="CreateSetupPackage" DependsOnTargets="CleanRedistDir" >
+        <Copy SourceFiles="$(TargetDir)\$(MSBuildProjectName).dll;$(TargetDir)\$(MSBuildProjectName).pdb;" DestinationFolder="$(RedistDir)" />
+
+        <CreateItem Include="
+                $(RedistDir)\$(MSBuildProjectName).dll;
+                $(RedistDir)\$(MSBuildProjectName).pdb;">
+            <Output TaskParameter="Include" ItemName="RedistDlls" />
+        </CreateItem>
+
+        <Zip Files="@(RedistDlls)" WorkingDirectory="$(RedistDir)\" ZipFileName="$(RedistDir)\$(MSBuildProjectName).zip" />
+    </Target>
+
+    <Target Name="Deploy" Condition="Exists('$(DeployDir)')">
+        <Copy SourceFiles="$(RedistDir)\$(MSBuildProjectName).zip" DestinationFolder="%(DeployDirs.FullPath)" SkipUnchangedFiles="false" />
+        <Unzip TargetDirectory="%(DeployDirs.FullPath)" ZipFileName="%(DeployDirs.FullPath)\$(MSBuildProjectName).zip" />
+    </Target>
+</Project>

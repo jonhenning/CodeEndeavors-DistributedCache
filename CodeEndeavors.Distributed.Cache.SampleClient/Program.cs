@@ -46,7 +46,7 @@ namespace CodeEndeavors.Distributed.Cache.SampleClient
                 //    Console.WriteLine(ex.Message);
                 //};
 
-                //Console.ReadLine();
+                Console.ReadLine();
                 var configFileName = AppDomain.CurrentDomain.BaseDirectory.PathCombine("CodeEndeavors.Distributed.Cache.SampleClient.exe.config", "\\");
                 
                 var notifierConnection = "";
