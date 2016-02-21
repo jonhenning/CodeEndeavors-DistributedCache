@@ -206,10 +206,7 @@ namespace CodeEndeavors.Distributed.Cache.Client
         /// <param name="cacheKey">Key in cache where entry is stored</param>
         public static void ExpireCacheEntry(string cacheName, string cacheKey)
         {
-            var cache = getCache(cacheName);
-            cache.Remove(cacheKey);
-            if (!string.IsNullOrEmpty(cache.NotifierName))
-                getNotifier(cache.NotifierName).BroadcastExpireCache(cacheName, cacheKey);
+            expireCacheEntry(cacheName, cacheKey, true);
         }
 
         /// <summary>
@@ -223,12 +220,8 @@ namespace CodeEndeavors.Distributed.Cache.Client
         /// <param name="itemKey">Key of dictionary entry to expire</param>
         public static void ExpireCacheItemEntry(string cacheName, string cacheKey, string itemKey)
         {
-            RemoveCacheEntry(cacheName, cacheKey, itemKey);
-            var cache = getCache(cacheName);
-            if (!string.IsNullOrEmpty(cache.NotifierName))
-                getNotifier(cache.NotifierName).BroadcastExpireCache(cacheName, cacheKey, itemKey);
+            expireCacheItemEntry(cacheName, cacheKey, itemKey, true);
         }
-
 
         /// <summary>
         /// Registers a cache to be used
@@ -374,6 +367,28 @@ namespace CodeEndeavors.Distributed.Cache.Client
             throw new Exception("Notifier not registered: " + name);
         }
 
+        private static void expireCacheEntry(string cacheName, string cacheKey, bool broadcast)
+        {
+            var cache = getCache(cacheName);
+            cache.Remove(cacheKey);
+
+            if (Service.OnCacheExpire != null)
+                Service.OnCacheExpire(cacheName, cacheKey);
+
+            if (broadcast && !string.IsNullOrEmpty(cache.NotifierName))
+                getNotifier(cache.NotifierName).BroadcastExpireCache(cacheName, cacheKey);
+        }
+
+        private static void expireCacheItemEntry(string cacheName, string cacheKey, string itemKey, bool broadcast)
+        {
+            RemoveCacheEntry(cacheName, cacheKey, itemKey);
+            if (Service.OnCacheItemExpire != null)
+                Service.OnCacheItemExpire(cacheName, cacheKey, itemKey);
+            var cache = getCache(cacheName);
+            if (broadcast && !string.IsNullOrEmpty(cache.NotifierName))
+                getNotifier(cache.NotifierName).BroadcastExpireCache(cacheName, cacheKey, itemKey);
+        }
+
         private static void onNotifierMessage(string clientId, string message)
         {
             if (Service.OnNotifierMessage != null)
@@ -382,17 +397,11 @@ namespace CodeEndeavors.Distributed.Cache.Client
 
         private static void onCacheExpire(string cacheName, string key)
         {
-            var cache = getCache(cacheName);
-            cache.Remove(key);
-            if (Service.OnCacheExpire != null)
-                Service.OnCacheExpire(cacheName, key);
+            expireCacheEntry(cacheName, key, false);
         }
         private static void onCacheItemExpire(string cacheName, string key, string itemKey)
         {
-            var cache = getCache(cacheName);
-            cache.Remove(key, itemKey);
-            if (Service.OnCacheItemExpire != null)
-                Service.OnCacheItemExpire(cacheName, key, itemKey);
+            expireCacheItemEntry(cacheName, key, itemKey, false);
         }
 
 
