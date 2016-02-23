@@ -11,6 +11,8 @@ namespace CodeEndeavors.Distributed.Cache.Client
         string ClientId {get;set;}
         string NotifierName { get; set; }
 
+        event Action<Service.LoggingLevel, string> OnLoggingMessage;
+
         bool Initialize(string cacheName, string clientId, string notifierName, string connection);
 
         bool Exists(string key);

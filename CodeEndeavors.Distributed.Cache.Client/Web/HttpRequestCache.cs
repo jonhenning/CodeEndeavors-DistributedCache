@@ -9,9 +9,10 @@ namespace CodeEndeavors.Distributed.Cache.Client.Web
     {
         private string _connection;
         private string _cacheName;
-        private string _clientId;
 
         public string ClientId {get;set;}
+        public string Name { get { return "HttpRequestCache"; } }
+
         public string NotifierName { get; set; }
 
         private string _webItemCacheKey;
@@ -34,7 +35,9 @@ namespace CodeEndeavors.Distributed.Cache.Client.Web
         {
             _connection = connection;
             _cacheName = cacheName;
-            _clientId = clientId;
+            ClientId = clientId;
+
+            log(Service.LoggingLevel.Minimal, "Initialized");
             return true;
         }
 
@@ -116,5 +119,19 @@ namespace CodeEndeavors.Distributed.Cache.Client.Web
         {
             
         }
+
+        #region Logging
+        public event Action<Service.LoggingLevel, string> OnLoggingMessage;
+
+        protected void log(Service.LoggingLevel level, string msg)
+        {
+            log(level, msg, "");
+        }
+        protected void log(Service.LoggingLevel level, string msg, params object[] args)
+        {
+            if (OnLoggingMessage != null)
+                OnLoggingMessage(level, string.Format("[{0}:{1}:{2}] - {3}", Name, ClientId, _cacheName, string.Format(msg, args)));
+        }
+        #endregion
     }
 }

@@ -12,12 +12,13 @@ namespace CodeEndeavors.Distributed.Cache.Client
         bool Initialize(string cacheName, string key, dynamic options);
         bool Initialize(string cacheName, string key, string itemKey, dynamic options);
 
+        string Name { get; }
         string CacheName { get; set; }
         string CacheKey { get; set; }
         string CacheItemKey { get; set; }
 
         event Action<string, string> OnExpire;
         event Action<string, string, string> OnExpireItem;
-
+        event Action<Service.LoggingLevel, string> OnLoggingMessage;
     }
 }

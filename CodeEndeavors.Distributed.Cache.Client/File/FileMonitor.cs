@@ -12,6 +12,18 @@ namespace CodeEndeavors.Distributed.Cache.Client.File
     public class FileMonitor : IMonitor 
     {
         private FileSystemWatcher _watcher;
+
+        public string Name { get { return "FileMonitor"; } }
+
+        public string ClientId { get; set; }
+        public string CacheName { get; set; }
+        public string CacheKey { get; set; }
+        public string CacheItemKey { get; set; }
+
+        public event Action<string, string> OnExpire;
+
+        public event Action<string, string, string> OnExpireItem;
+
         public bool Initialize(string cacheName, string key, dynamic options)
         {
             return Initialize(cacheName, key, null, options);
@@ -35,39 +47,47 @@ namespace CodeEndeavors.Distributed.Cache.Client.File
                 _watcher.Path = fileInfo.DirectoryName;
                 _watcher.Changed += onChanged;
                 _watcher.EnableRaisingEvents = true;
+                log(Service.LoggingLevel.Minimal, "Initialized");
                 return true;
             }
 
             return false;
         }
-        
+
         private void onChanged(object source, FileSystemEventArgs e)
         {
+            log(Service.LoggingLevel.Minimal, "OnChanged");
             if (string.IsNullOrEmpty(CacheItemKey))
             {
                 if (OnExpire != null)
                     OnExpire(CacheName, CacheKey);
             }
-            else 
+            else
             {
                 if (OnExpireItem != null)
                     OnExpireItem(CacheName, CacheKey, CacheItemKey);
             }
         }
 
-        public string ClientId { get; set; }
-        public string CacheName { get; set; }
-        public string CacheKey { get; set; }
-        public string CacheItemKey { get; set; }
-
-        public event Action<string, string> OnExpire;
-
-        public event Action<string, string, string> OnExpireItem;
-
         public void Dispose()
         {
             if (_watcher != null)
                 _watcher.Dispose();
         }
+
+        #region Logging
+        public event Action<Service.LoggingLevel, string> OnLoggingMessage;
+
+        protected void log(Service.LoggingLevel level, string msg)
+        {
+            log(level, msg, "");
+        }
+        protected void log(Service.LoggingLevel level, string msg, params object[] args)
+        {
+            if (OnLoggingMessage != null)
+                OnLoggingMessage(level, string.Format("[{0}:{1}:{2}:{3}:{4}] - {5}", Name, ClientId, CacheName, CacheKey, CacheItemKey, string.Format(msg, args)));
+        }
+        #endregion
+
     }
 }

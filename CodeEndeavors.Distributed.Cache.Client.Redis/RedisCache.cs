@@ -2,6 +2,7 @@
 using StackExchange.Redis;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -12,7 +13,10 @@ namespace CodeEndeavors.Distributed.Cache.Client.Redis
     {
         private ConnectionMultiplexer _multiplexer = null;
 
+        private string _cacheName;
+
         public string ClientId {get ;set; }
+        public string Name { get { return "RedisCache"; } }
 
         public string NotifierName {get;set;}
 
@@ -21,10 +25,12 @@ namespace CodeEndeavors.Distributed.Cache.Client.Redis
             var connectionDict = connection.ToObject<Dictionary<string, object>>();
 
             ClientId = clientId;
+            _cacheName = cacheName;
             var server = connectionDict.GetSetting("server", "");
 
             _multiplexer = ConnectionMultiplexer.Connect(server);
 
+            log(Service.LoggingLevel.Minimal, "Initialized");
             return true;
         }
 
@@ -103,5 +109,19 @@ namespace CodeEndeavors.Distributed.Cache.Client.Redis
             if (_multiplexer != null)
                 _multiplexer.Dispose();
         }
+
+        #region Logging
+        public event Action<Service.LoggingLevel, string> OnLoggingMessage;
+
+        protected void log(Service.LoggingLevel level, string msg)
+        {
+            log(level, msg, "");
+        }
+        protected void log(Service.LoggingLevel level, string msg, params object[] args)
+        {
+            if (OnLoggingMessage != null)
+                OnLoggingMessage(level, string.Format("[{0}:{1}:{2}] - {3}", Name, ClientId, _cacheName, string.Format(msg, args)));
+        }
+        #endregion
     }
 }

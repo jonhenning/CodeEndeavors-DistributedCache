@@ -9,19 +9,21 @@ namespace CodeEndeavors.Distributed.Cache.Client.InMemory
     {
         private string _connection;
         private string _cacheName;
-        private string _clientId;
 
         public string ClientId {get;set;}
+        public string Name { get { return "InMemoryCache"; } }
+
         public string NotifierName { get; set; }
 
         public bool Initialize(string cacheName, string clientId, string notifierName, string connection)
         {
             _connection = connection;
             _cacheName = cacheName;
-            _clientId = clientId;
+            ClientId = clientId;
             NotifierName = notifierName;
             var connectionDict = connection.ToObject<Dictionary<string, object>>();
 
+            log(Service.LoggingLevel.Minimal, "Initialized");
             return true;
         }
 
@@ -114,5 +116,19 @@ namespace CodeEndeavors.Distributed.Cache.Client.InMemory
         {
             MemoryCache.Default.Dispose();
         }
+
+        #region Logging
+        public event Action<Service.LoggingLevel, string> OnLoggingMessage;
+
+        protected void log(Service.LoggingLevel level, string msg)
+        {
+            log(level, msg, "");
+        }
+        protected void log(Service.LoggingLevel level, string msg, params object[] args)
+        {
+            if (OnLoggingMessage != null)
+                OnLoggingMessage(level, string.Format("[{0}:{1}:{2}] - {3}", Name, ClientId, _cacheName, string.Format(msg, args)));
+        }
+        #endregion
     }
 }

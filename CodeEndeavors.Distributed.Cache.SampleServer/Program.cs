@@ -18,10 +18,33 @@ namespace CodeEndeavors.Distributed.Cache.SampleServer
             var redisConf = "redis.windows.conf";
             using (WebApp.Start<Startup>(signalRServerUrl))
             {
-                Console.WriteLine("SignalR Server is running on " + signalRServerUrl);
-                Console.Write("Start Redis Server (y/n)? ");
-                if (Console.ReadLine().StartsWith("y", StringComparison.InvariantCultureIgnoreCase))
+                Console.WriteLine("Select Configuration");
+                Console.WriteLine("1) InMemory Cache");
+                Console.WriteLine("2) InMemory Cache File Monitor");
+                Console.WriteLine("3) InMemory Cache SignalR Expire");
+                Console.WriteLine("4) InMemory Cache SignalR Expire FileMonitor");
+                Console.WriteLine("5) InMemory Cache Redis Expire");
+                Console.WriteLine("6) Redis Cache");
+                var config = Console.ReadLine();
+
+                string cacheKey = "InMemoryCache";
+                string notifierKey = "none";
+                string monitorKey = "none";
+
+                if (config == "2" || config == "4")
+                    monitorKey = "FileMonitor";
+                if (config == "3" || config == "4")
                 {
+                    notifierKey = "SignalRNotifier";
+                    Console.WriteLine("SignalR Server is running on " + signalRServerUrl);
+                }
+                if (config == "5" || config == "6")
+                {
+                    if (config == "5")
+                        notifierKey = "RedisNotifier";
+                    if (config == "6")
+                        cacheKey = "RedisCache";
+
                     Console.WriteLine("Starting Redis Server...");
                     startRedis(redisConf);
                 }
@@ -34,7 +57,7 @@ namespace CodeEndeavors.Distributed.Cache.SampleServer
                 Console.WriteLine("Starting {0} clients...", clientCount);
                 for (var i = 0; i < clientCount; i++)
                 {
-                    startClient(signalRServerUrl, "SampleClient" + (i + 1));
+                    startClient(cacheKey + " " + monitorKey + " " + notifierKey + " " + signalRServerUrl, "SampleClient" + (i + 1));
                 }
 
                 Console.WriteLine("Press any key to quit.");

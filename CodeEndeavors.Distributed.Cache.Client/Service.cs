@@ -19,11 +19,20 @@ namespace CodeEndeavors.Distributed.Cache.Client
     /// </summary>
     public class Service
     {
+        public enum LoggingLevel
+        {
+            None = 0,
+            Minimal = 1,
+            Detailed = 2,
+            Verbose = 3
+        }
+
         private static readonly object cacheLock = new object();
         private static ConcurrentDictionary<string, ICache> _caches = new ConcurrentDictionary<string, ICache>();
         private static ConcurrentDictionary<string, INotifier> _notifiers = new ConcurrentDictionary<string, INotifier>();
         private static ConcurrentDictionary<string, IMonitor> _monitors = new ConcurrentDictionary<string, IMonitor>();
 
+        public static LoggingLevel LogLevel { get; set; }
         /// <summary>
         /// Global event handling all Notifier's events
         /// </summary>
@@ -37,6 +46,8 @@ namespace CodeEndeavors.Distributed.Cache.Client
         /// </summary>
         public static event Action<string, string, string> OnCacheItemExpire;
         //public static event Action<Exception> OnError;
+
+        public static event Action<string> OnLoggingMessage;
 
         /// <summary>
         /// Method used to first inspect cache for results and if not found invoke the lookupFunc to populate the cache with results for subsequent calls.
@@ -63,14 +74,26 @@ namespace CodeEndeavors.Distributed.Cache.Client
                 {
                     if (!cache.Exists(cacheKey))
                     {
-                        item = lookupFunc();
+                        using (new Client.OperationTimer(log, "GetCacheEntry (lookup): {0}:{1}", cacheName, cacheKey))
+                            item = lookupFunc();
                         //cache.Set(cacheKey, item);
-                        SetCacheEntry(cacheName, cacheKey, item, monitorOptions);
+                        //SetCacheEntry(cacheName, cacheKey, item, monitorOptions);
+                        SetCacheEntry(cacheName, cacheKey, item);
+                        log(LoggingLevel.Minimal, "Retrieved cache entry {0}:{1}", cacheName, cacheKey);
                     }
                     else
-                        item = cache.Get(cacheKey, default(T));
+                        using (new Client.OperationTimer(log, "GetCacheEntry (in-cache): {0}:{1}", cacheName, cacheKey))
+                            item = cache.Get(cacheKey, default(T));
                 }
             }
+
+            //always attempt to register monitor if we have one
+            //for scenarios where we may be sharing a cache with another, they may have put the item in cache
+            //we still want to register ourselves for the changed events to properly expire
+            //even though they may be responsible for the expire, they may have been shut down
+            if (monitorOptions != null)
+                RegisterMonitor(cacheName, cacheKey, monitorOptions);
+
             return item;
         }
 
@@ -96,11 +119,14 @@ namespace CodeEndeavors.Distributed.Cache.Client
                 {
                     if (!cache.Exists(cacheKey, itemKey))
                     {
-                        item = lookupFunc();
+                        using (new Client.OperationTimer(log, "GetCacheEntry (lookup): {0}:{1}:{2}", cacheName, cacheKey, itemKey))
+                            item = lookupFunc();
                         cache.Set(cacheKey, itemKey, item);
+                        log(LoggingLevel.Minimal, "Retrieved cache entry {0}:{1}:{2}", cacheName, cacheKey, itemKey);
                     }
                     else
-                        item = cache.Get(cacheKey, itemKey, default(T));
+                        using (new Client.OperationTimer(log, "GetCacheEntry (in-cache): {0}:{1}:{2}", cacheName, cacheKey, itemKey))
+                            item = cache.Get(cacheKey, itemKey, default(T));
                 }
             }
             return item;
@@ -138,6 +164,7 @@ namespace CodeEndeavors.Distributed.Cache.Client
                 foreach (var itemKey in newValues.Keys)
                     cache.Set(cacheKey, itemKey, newValues[itemKey]);
                 ret.Merge(newValues, false);
+                log(LoggingLevel.Minimal, "Retrieved cache entries {0} {1}", cacheName, keysToLookup.ToJson());
             }
             return ret;
         }
@@ -155,10 +182,13 @@ namespace CodeEndeavors.Distributed.Cache.Client
         }
         public static void SetCacheEntry<T>(string cacheName, string cacheKey, T value, dynamic monitorOptions)
         {
-            getCache(cacheName).Set<T>(cacheKey, value);
-            //if (!string.IsNullOrEmpty(monitorOptions))
-            if (monitorOptions != null)
-                RegisterMonitor(cacheName, cacheKey, monitorOptions);
+            using (new Client.OperationTimer(log, "SetCacheEntry: {0}:{1}", cacheName, cacheKey))
+            {
+                getCache(cacheName).Set<T>(cacheKey, value);
+                //if (!string.IsNullOrEmpty(monitorOptions))
+                if (monitorOptions != null)
+                    RegisterMonitor(cacheName, cacheKey, monitorOptions);
+            }
         }
 
         /// <summary>
@@ -171,7 +201,8 @@ namespace CodeEndeavors.Distributed.Cache.Client
         /// <returns></returns>
         public static T GetCacheEntry<T>(string cacheName, string cacheKey, T defaultValue)
         {
-            return getCache(cacheName).Get<T>(cacheKey, defaultValue);
+            using (new Client.OperationTimer(log, "GetCacheEntry: {0}:{1}", cacheName, cacheKey))
+                return getCache(cacheName).Get<T>(cacheKey, defaultValue);
         }
 
         /// <summary>
@@ -182,7 +213,11 @@ namespace CodeEndeavors.Distributed.Cache.Client
         /// <returns>true if item was removed, false if item not found</returns>
         public static bool RemoveCacheEntry(string cacheName, string cacheKey)
         {
-            return getCache(cacheName).Remove(cacheKey);
+            bool success;
+            using (new Client.OperationTimer(log, "RemoveCacheEntry: {0}:{1}", cacheName, cacheKey))
+                success = getCache(cacheName).Remove(cacheKey);
+            log(LoggingLevel.Minimal, "Removed cache entry {0}:{1} ({2})", cacheName, cacheKey, success);
+            return success;
         }
         /// <summary>
         /// Removes entry from cache Dictionary
@@ -193,7 +228,11 @@ namespace CodeEndeavors.Distributed.Cache.Client
         /// <returns>true if item was removed, false if item not found</returns>
         public static bool RemoveCacheEntry(string cacheName, string cacheKey, string itemKey)
         {
-            return getCache(cacheName).Remove(cacheKey, itemKey);
+            bool success;
+            using (new Client.OperationTimer(log, "RemoveCacheEntry: {0}:{1}:{2}", cacheName, cacheKey, itemKey))
+                success = getCache(cacheName).Remove(cacheKey, itemKey);
+            log(LoggingLevel.Minimal, "Removed cache entry {0}:{1}:{2} ({3})", cacheName, cacheKey, itemKey, success);
+            return success;
         }
 
         /// <summary>
@@ -206,7 +245,8 @@ namespace CodeEndeavors.Distributed.Cache.Client
         /// <param name="cacheKey">Key in cache where entry is stored</param>
         public static void ExpireCacheEntry(string cacheName, string cacheKey)
         {
-            expireCacheEntry(cacheName, cacheKey, true);
+            using (new Client.OperationTimer(log, "ExpireCacheEntry: {0}:{1}", cacheName, cacheKey))
+                expireCacheEntry(cacheName, cacheKey, true);
         }
 
         /// <summary>
@@ -220,7 +260,8 @@ namespace CodeEndeavors.Distributed.Cache.Client
         /// <param name="itemKey">Key of dictionary entry to expire</param>
         public static void ExpireCacheItemEntry(string cacheName, string cacheKey, string itemKey)
         {
-            expireCacheItemEntry(cacheName, cacheKey, itemKey, true);
+            using (new Client.OperationTimer(log, "ExpireCacheEntry: {0}:{1}:{2}", cacheName, cacheKey, itemKey))
+                expireCacheItemEntry(cacheName, cacheKey, itemKey, true);
         }
 
         /// <summary>
@@ -240,16 +281,19 @@ namespace CodeEndeavors.Distributed.Cache.Client
                 {
                     if (!_caches.ContainsKey(cacheName))
                     {
-                        var connectionDict = connection.ToObject<Dictionary<string, object>>();
-                        var typeName = connectionDict.GetSetting("cacheType", "CodeEndeavors.Distributed.Cache.Client.InMemory.InMemoryCache");
-                        var clientId = connectionDict.GetSetting("clientId", Guid.NewGuid().ToString());
-
-                        var cache = typeName.GetInstance<ICache>();
-
-                        if (cache.Initialize(cacheName, clientId, connectionDict.GetSetting("notifierName", ""), connection))
+                        using (new Client.OperationTimer(log, "RegisterCache: {0}:{1}", cacheName, connection))
                         {
-                            _caches[cacheName] = cache;
-                            return cache;
+                            var connectionDict = connection.ToObject<Dictionary<string, object>>();
+                            var typeName = connectionDict.GetSetting("cacheType", "CodeEndeavors.Distributed.Cache.Client.InMemory.InMemoryCache");
+                            var clientId = connectionDict.GetSetting("clientId", Guid.NewGuid().ToString());
+
+                            var cache = typeName.GetInstance<ICache>();
+                            cache.OnLoggingMessage += onLogMessage;
+                            if (cache.Initialize(cacheName, clientId, connectionDict.GetSetting("notifierName", ""), connection))
+                            {
+                                _caches[cacheName] = cache;
+                                return cache;
+                            }
                         }
                     }
                 }
@@ -274,19 +318,23 @@ namespace CodeEndeavors.Distributed.Cache.Client
                 {
                     if (!_notifiers.ContainsKey(name))
                     {
-                        var connectionDict = connection.ToObject<Dictionary<string, object>>();
-                        var typeName = connectionDict.GetSetting("notifierType", "CodeEndeavors.Distributed.Cache.Client.SignalRNotifier");
-                        var clientId = connectionDict.GetSetting("clientId", Guid.NewGuid().ToString());
-
-                        var notifier = typeName.GetInstance<INotifier>();
-                        if (notifier.Initialize(clientId, connection))
+                        using (new Client.OperationTimer(log, "RegisterNotifier: {0}:{1}", name, connection))
                         {
-                            _notifiers[name] = notifier;
-                            notifier.OnMessage += onNotifierMessage;
-                            notifier.OnExpire += onCacheExpire;
-                            notifier.OnExpireItem += onCacheItemExpire;
+                            var connectionDict = connection.ToObject<Dictionary<string, object>>();
+                            var typeName = connectionDict.GetSetting("notifierType", "CodeEndeavors.Distributed.Cache.Client.SignalRNotifier");
+                            var clientId = connectionDict.GetSetting("clientId", Guid.NewGuid().ToString());
 
-                            return notifier;
+                            var notifier = typeName.GetInstance<INotifier>();
+                            notifier.OnLoggingMessage += onLogMessage;
+                            notifier.OnMessage += onNotifierMessage;
+                            if (notifier.Initialize(clientId, connection))
+                            {
+                                _notifiers[name] = notifier;
+                                notifier.OnExpire += onCacheExpire;
+                                notifier.OnExpireItem += onCacheItemExpire;
+
+                                return notifier;
+                            }
                         }
                     }
                 }
@@ -302,25 +350,31 @@ namespace CodeEndeavors.Distributed.Cache.Client
 
         public static void RegisterMonitor(string cacheName, string cacheKey, string cacheItemKey, dynamic options)
         {
-            //var optionDict = options.ToObject<Dictionary<string, object>>();
-            //var optionDict = new Dictionary<string, object>((IDictionary<string, object>)options);
-            var optionDict = ((object)options).ToDictionary(); //options.ToJson().ToObject<Dictionary<string, object>>();
-            //allow options to contain a propertyName that is identified as unique or a uniqueId
-            var uniqueId = optionDict.GetSetting(optionDict.GetSetting("uniqueProperty", "uniqueId"), "");
-
-            if (string.IsNullOrEmpty(uniqueId))
-                throw new Exception("Monitor must contain uniqueId in options");
-
-            var key = getMonitorKey(cacheName, cacheKey, cacheItemKey, uniqueId);
-            if (!_monitors.ContainsKey(key))
+            using (new Client.OperationTimer(log, "RegisterMonitor: {0}:{1}:{2}", cacheName, cacheKey, cacheItemKey))
             {
-                var typeName = optionDict.GetSetting("monitorType", "CodeEndeavors.Distributed.Cache.Client.File.FileMonitor");
-                var monitor = typeName.GetInstance<IMonitor>();
-                if (monitor.Initialize(cacheName, cacheKey, cacheItemKey, options))
+                //var optionDict = options.ToObject<Dictionary<string, object>>();
+                //var optionDict = new Dictionary<string, object>((IDictionary<string, object>)options);
+                var optionDict = ((object)options).ToDictionary(); //options.ToJson().ToObject<Dictionary<string, object>>();
+                //allow options to contain a propertyName that is identified as unique or a uniqueId
+                var uniqueId = optionDict.GetSetting(optionDict.GetSetting("uniqueProperty", "uniqueId"), "");
+
+                if (string.IsNullOrEmpty(uniqueId))
+                    throw new Exception("Monitor must contain uniqueId in options");
+
+                var key = getMonitorKey(cacheName, cacheKey, cacheItemKey, uniqueId);
+                if (!_monitors.ContainsKey(key))
                 {
-                    monitor.OnExpire += onCacheExpire;
-                    monitor.OnExpireItem += onCacheItemExpire;
-                    _monitors[key] = monitor;
+                    var typeName = optionDict.GetSetting("monitorType", "CodeEndeavors.Distributed.Cache.Client.File.FileMonitor");
+                    var monitor = typeName.GetInstance<IMonitor>();
+                    if (monitor.Initialize(cacheName, cacheKey, cacheItemKey, options))
+                    {
+                        monitor.OnExpire += onCacheExpire;
+                        monitor.OnExpireItem += onCacheItemExpire;
+                        monitor.OnLoggingMessage += onLogMessage;
+                        _monitors[key] = monitor;
+
+                        log(LoggingLevel.Minimal, "Registered Monitor {0}:{1}:{2} ({3})", cacheName, cacheKey, cacheItemKey, uniqueId);
+                    }
                 }
             }
         }
@@ -346,6 +400,8 @@ namespace CodeEndeavors.Distributed.Cache.Client
                 if (_monitors != null)
                     _monitors.Values.ToList().ForEach(m => m.Dispose());
                 _monitors = new ConcurrentDictionary<string, IMonitor>();
+
+                log(LoggingLevel.Minimal, "Disposed of all resources");
             }
         }
 
@@ -354,7 +410,10 @@ namespace CodeEndeavors.Distributed.Cache.Client
             ICache cache = null;
             _caches.TryGetValue(name, out cache);
             if (cache != null)
+            {
+                log(LoggingLevel.Verbose, "Retrieved cache {0}", name);
                 return cache;
+            }
             throw new Exception("Cache not registered: " + name);
         }
 
@@ -363,20 +422,26 @@ namespace CodeEndeavors.Distributed.Cache.Client
             INotifier notifier = null;
             _notifiers.TryGetValue(name, out notifier);
             if (notifier != null)
+            {
+                log(LoggingLevel.Verbose, "Retrieved notifier {0}", name);
                 return notifier;
+            }
             throw new Exception("Notifier not registered: " + name);
         }
 
         private static void expireCacheEntry(string cacheName, string cacheKey, bool broadcast)
         {
-            var cache = getCache(cacheName);
-            cache.Remove(cacheKey);
+            RemoveCacheEntry(cacheName, cacheKey);
 
             if (Service.OnCacheExpire != null)
                 Service.OnCacheExpire(cacheName, cacheKey);
 
+            var cache = getCache(cacheName);
             if (broadcast && !string.IsNullOrEmpty(cache.NotifierName))
+            {
+                log(LoggingLevel.Minimal, "Broadcasting expire {0}:{1}", cacheName, cacheKey);
                 getNotifier(cache.NotifierName).BroadcastExpireCache(cacheName, cacheKey);
+            }
         }
 
         private static void expireCacheItemEntry(string cacheName, string cacheKey, string itemKey, bool broadcast)
@@ -386,7 +451,10 @@ namespace CodeEndeavors.Distributed.Cache.Client
                 Service.OnCacheItemExpire(cacheName, cacheKey, itemKey);
             var cache = getCache(cacheName);
             if (broadcast && !string.IsNullOrEmpty(cache.NotifierName))
+            {
+                log(LoggingLevel.Minimal, "Broadcasting expire {0}:{1}:{2}", cacheName, cacheKey, itemKey);
                 getNotifier(cache.NotifierName).BroadcastExpireCache(cacheName, cacheKey, itemKey);
+            }
         }
 
         private static void onNotifierMessage(string clientId, string message)
@@ -404,6 +472,20 @@ namespace CodeEndeavors.Distributed.Cache.Client
             expireCacheItemEntry(cacheName, key, itemKey, false);
         }
 
+        private static void onLogMessage(LoggingLevel level, string msg)
+        {
+            log(level, msg);
+        }
+
+        protected static void log(LoggingLevel level, string msg)
+        {
+            log(level, msg, "");
+        }
+        protected static void log(LoggingLevel level, string msg, params object[] args)
+        {
+            if ((int)level <= (int)LogLevel && OnLoggingMessage != null)
+                OnLoggingMessage(msg.IndexOf("{0}") > -1 ? string.Format(msg, args): msg);
+        }
 
     }
 }

@@ -15,7 +15,9 @@ namespace CodeEndeavors.Distributed.Cache.Client
         void BroadcastExpireCache(string cacheName, string key, string itemKey);
 
         string ClientId { get; set; }
+        string Name { get; }
 
+        event Action<Service.LoggingLevel, string> OnLoggingMessage;
         event Action<string, string> OnMessage;
         event Action<string, string> OnExpire;
         event Action<string, string, string> OnExpireItem;

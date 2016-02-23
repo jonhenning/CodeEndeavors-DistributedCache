@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Dynamic;
+using System.Configuration;
 
 namespace CodeEndeavors.Distributed.Cache.SampleClient
 {
@@ -15,17 +16,42 @@ namespace CodeEndeavors.Distributed.Cache.SampleClient
         {
             try
             {
-                string notifierName = "TestRedisNotifier";// "TestSignalRNotifier";
-                string cacheName = "TestSignalR";
+                string notifierKey = "";
+                string cacheKey = "InMemoryCache";
+                string monitorKey = "FileMonitor";
+                
+                string notifierName = "";//;
+                string cacheName = "TestCacheName";
                 string url = "";
                 string clientId = "SampleClient";
-                var redisServer = "127.0.0.1";
-                if (args.Length > 0)
-                    url = args[0];
-                if (args.Length > 1)
-                    clientId = args[1];
 
+                if (args.Length != 5)
+                {
+                    Console.WriteLine("Usage: <cachekey> <monitorkey> <notifierkey> <url> <clientid>");
+                    Console.ReadLine();
+                    return;
+                }
+
+                //var redisServer = "127.0.0.1";
+                if (args.Length > 0)
+                    cacheKey = args[0];
+                if (args.Length > 1)
+                    monitorKey = args[1];
+                if (args.Length > 2)
+                    notifierKey = args[2];
+                if (args.Length > 3)
+                    url = args[3];
+                if (args.Length > 4)
+                    clientId = args[4];
+                Console.ReadLine();
                 Console.WriteLine("{0} Started...", clientId);
+
+
+                Service.LogLevel = Service.LoggingLevel.Detailed;
+                Service.OnLoggingMessage += (message) =>
+                {
+                    Console.WriteLine("LOG: " + message);
+                };
 
                 Service.OnNotifierMessage += (cid, message) =>
                 {
@@ -52,14 +78,20 @@ namespace CodeEndeavors.Distributed.Cache.SampleClient
                 var notifierConnection = "";
                 var cacheConnection = "";
                 //var monitorOptions = "";
-                dynamic monitorOptions;
-                notifierConnection = string.Format("{{'notifierType': 'CodeEndeavors.Distributed.Cache.Client.SignalR.SignalRNotifier', 'clientId': '{0}', 'url': '{1}'}}", clientId, url);
+                dynamic monitorOptions = null;
+                notifierConnection = string.Format(ConfigurationManager.AppSettings.GetSetting(notifierKey, ""), clientId, url);
                 //notifierConnection = string.Format("{{'notifierType': 'CodeEndeavors.Distributed.Cache.Client.Redis.RedisNotifier', 'clientId': '{0}', 'server': '{1}'}}", clientId, redisServer);
-                cacheConnection = string.Format("{{'cacheType': 'CodeEndeavors.Distributed.Cache.Client.InMemory.InMemoryCache', 'notifierName': '{0}', 'clientId': '{1}' }}", notifierName, clientId);
+                if (!string.IsNullOrEmpty(notifierConnection))
+                    notifierName = "TestNotifier";
+                cacheConnection = string.Format(ConfigurationManager.AppSettings.GetSetting(cacheKey, "InMemoryCache"), clientId, notifierName);
                 //cacheConnection = string.Format("{{'cacheType': 'CodeEndeavors.Distributed.Cache.Client.Redis', 'notifierName': '{0}', 'clientId': '{1}', 'server': '{2}' }}", notifierName, clientId, redisServer);
 
                 //monitorOptions = (new { monitorType = "CodeEndeavors.Distributed.Cache.Client.File.FileMonitor", fileName = configFileName, uniqueProperty = "fileName" }).ToJson();
-                monitorOptions = new { monitorType = "CodeEndeavors.Distributed.Cache.Client.File.FileMonitor", fileName = configFileName, uniqueProperty = "fileName" };
+                if (!string.IsNullOrEmpty(ConfigurationManager.AppSettings.GetSetting(monitorKey, "")))
+                {
+                    monitorOptions = ConfigurationManager.AppSettings.GetSetting(monitorKey, "").ToObject<Dictionary<string, object>>();// new { monitorType = "CodeEndeavors.Distributed.Cache.Client.File.FileMonitor", fileName = configFileName, uniqueProperty = "fileName" };
+                    monitorOptions["fileName"] = configFileName;
+                }
 
                 Console.WriteLine("Notifier Connection: " + notifierConnection);
                 Console.WriteLine("Cache Connection: " + cacheConnection);
@@ -100,7 +132,7 @@ namespace CodeEndeavors.Distributed.Cache.SampleClient
                         {
                             var key = command.Split(' ')[1];
                             Console.WriteLine("Calling GetCacheEntry({0}, {1})", cacheName, key);
-                            Console.WriteLine(Service.GetCacheEntry<string>(cacheName, key, ""));
+                            Console.WriteLine(Service.GetCacheEntry<object>(cacheName, key, "").ToJson(true));
                         }
                         else if (command.StartsWith("remove "))
                         {
