@@ -19,6 +19,5 @@ namespace CodeEndeavors.Distributed.Cache.Client
 
         event Action<string, string> OnExpire;
         event Action<string, string, string> OnExpireItem;
-        event Action<Service.LoggingLevel, string> OnLoggingMessage;
     }
 }

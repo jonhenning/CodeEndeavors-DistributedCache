@@ -46,9 +46,8 @@ namespace CodeEndeavors.Distributed.Cache.SampleClient
                 Console.ReadLine();
                 Console.WriteLine("{0} Started...", clientId);
 
-
-                Service.LogLevel = Service.LoggingLevel.Detailed;
-                Service.OnLoggingMessage += (message) =>
+                Logging.LogLevel = Logging.LoggingLevel.Detailed;
+                Logging.OnLoggingMessage += (message) =>
                 {
                     Console.WriteLine("LOG: " + message);
                 };

@@ -54,6 +54,7 @@
     <Compile Include="INotifier.cs" />
     <Compile Include="ICache.cs" />
     <Compile Include="InMemory\InMemoryCache.cs" />
+    <Compile Include="Logging.cs" />
     <Compile Include="Service.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="OperationTimer.cs" />

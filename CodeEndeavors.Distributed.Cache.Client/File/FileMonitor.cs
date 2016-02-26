@@ -47,7 +47,7 @@ namespace CodeEndeavors.Distributed.Cache.Client.File
                 _watcher.Path = fileInfo.DirectoryName;
                 _watcher.Changed += onChanged;
                 _watcher.EnableRaisingEvents = true;
-                log(Service.LoggingLevel.Minimal, "Initialized");
+                log(Logging.LoggingLevel.Minimal, "Initialized");
                 return true;
             }
 
@@ -56,7 +56,7 @@ namespace CodeEndeavors.Distributed.Cache.Client.File
 
         private void onChanged(object source, FileSystemEventArgs e)
         {
-            log(Service.LoggingLevel.Minimal, "OnChanged");
+            log(Logging.LoggingLevel.Minimal, "OnChanged");
             if (string.IsNullOrEmpty(CacheItemKey))
             {
                 if (OnExpire != null)
@@ -76,16 +76,14 @@ namespace CodeEndeavors.Distributed.Cache.Client.File
         }
 
         #region Logging
-        public event Action<Service.LoggingLevel, string> OnLoggingMessage;
 
-        protected void log(Service.LoggingLevel level, string msg)
+        protected void log(Logging.LoggingLevel level, string msg)
         {
             log(level, msg, "");
         }
-        protected void log(Service.LoggingLevel level, string msg, params object[] args)
+        protected void log(Logging.LoggingLevel level, string msg, params object[] args)
         {
-            if (OnLoggingMessage != null)
-                OnLoggingMessage(level, string.Format("[{0}:{1}:{2}:{3}:{4}] - {5}", Name, ClientId, CacheName, CacheKey, CacheItemKey, string.Format(msg, args)));
+            Logging.Log(level, string.Format("[{0}:{1}:{2}:{3}:{4}] - {5}", Name, ClientId, CacheName, CacheKey, CacheItemKey, string.Format(msg, args)));
         }
         #endregion
 

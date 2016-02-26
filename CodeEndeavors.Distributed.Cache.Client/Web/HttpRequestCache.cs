@@ -37,7 +37,7 @@ namespace CodeEndeavors.Distributed.Cache.Client.Web
             _cacheName = cacheName;
             ClientId = clientId;
 
-            log(Service.LoggingLevel.Minimal, "Initialized");
+            log(Logging.LoggingLevel.Minimal, "Initialized");
             return true;
         }
 
@@ -121,16 +121,14 @@ namespace CodeEndeavors.Distributed.Cache.Client.Web
         }
 
         #region Logging
-        public event Action<Service.LoggingLevel, string> OnLoggingMessage;
 
-        protected void log(Service.LoggingLevel level, string msg)
+        protected void log(Logging.LoggingLevel level, string msg)
         {
             log(level, msg, "");
         }
-        protected void log(Service.LoggingLevel level, string msg, params object[] args)
+        protected void log(Logging.LoggingLevel level, string msg, params object[] args)
         {
-            if (OnLoggingMessage != null)
-                OnLoggingMessage(level, string.Format("[{0}:{1}:{2}] - {3}", Name, ClientId, _cacheName, string.Format(msg, args)));
+            Logging.Log(level, string.Format("[{0}:{1}:{2}] - {3}", Name, ClientId, _cacheName, string.Format(msg, args)));
         }
         #endregion
     }

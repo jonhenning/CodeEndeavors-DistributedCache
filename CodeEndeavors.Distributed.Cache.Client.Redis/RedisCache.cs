@@ -30,7 +30,7 @@ namespace CodeEndeavors.Distributed.Cache.Client.Redis
 
             _multiplexer = ConnectionMultiplexer.Connect(server);
 
-            log(Service.LoggingLevel.Minimal, "Initialized");
+            log(Logging.LoggingLevel.Minimal, "Initialized");
             return true;
         }
 
@@ -86,12 +86,12 @@ namespace CodeEndeavors.Distributed.Cache.Client.Redis
 
         public void Set<T>(string key, T value)
         {
-            var json = value.ToJson();
+            var json = value.ToJson(false, "db");   //todo: this is really hacky that at this level we are imposing the serialization rules from resourcemanager here - db
             _multiplexer.GetDatabase().StringSet(key, json);
         }
         public void Set<T>(string key, string itemKey, T value)
         {
-            var json = value.ToJson();
+            var json = value.ToJson(false, "db");   //todo: this is really hacky that at this level we are imposing the serialization rules from resourcemanager here - db
             _multiplexer.GetDatabase().HashSet(key, itemKey, json);
         }
 
@@ -111,16 +111,14 @@ namespace CodeEndeavors.Distributed.Cache.Client.Redis
         }
 
         #region Logging
-        public event Action<Service.LoggingLevel, string> OnLoggingMessage;
 
-        protected void log(Service.LoggingLevel level, string msg)
+        protected void log(Logging.LoggingLevel level, string msg)
         {
             log(level, msg, "");
         }
-        protected void log(Service.LoggingLevel level, string msg, params object[] args)
+        protected void log(Logging.LoggingLevel level, string msg, params object[] args)
         {
-            if (OnLoggingMessage != null)
-                OnLoggingMessage(level, string.Format("[{0}:{1}:{2}] - {3}", Name, ClientId, _cacheName, string.Format(msg, args)));
+            Logging.Log(level, string.Format("[{0}:{1}:{2}] - {3}", Name, ClientId, _cacheName, string.Format(msg, args)));
         }
         #endregion
     }

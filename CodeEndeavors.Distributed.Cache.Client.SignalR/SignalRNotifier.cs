@@ -41,7 +41,7 @@ namespace CodeEndeavors.Distributed.Cache.Client.SignalR
 
             BroadcastMessage(string.Format("SignalR {0} client connected on: {1}", clientId, url));
 
-            log(Service.LoggingLevel.Minimal, "Initialized");
+            log(Logging.LoggingLevel.Minimal, "Initialized");
             return true;
         }
 
@@ -49,52 +49,52 @@ namespace CodeEndeavors.Distributed.Cache.Client.SignalR
         {
             var args = new Dictionary<string, object>() { { "clientId", ClientId }, { "message", message } };
             _proxy.Invoke<Dictionary<string, object>>("SendMessage", args);
-            log(Service.LoggingLevel.Detailed, "Broadcasting Message: " + message);
+            log(Logging.LoggingLevel.Detailed, "Broadcasting Message: " + message);
         }
 
         public void BroadcastExpireCache(string cacheName, string key)
         {
             var args = new Dictionary<string, object>() { { "clientId", ClientId }, { "cacheName", cacheName }, { "key", key } };
             _proxy.Invoke<Dictionary<string, object>>("ExpireCache", args);
-            log(Service.LoggingLevel.Detailed, "Broadcasting ExpireCache: {0}", key);
+            log(Logging.LoggingLevel.Detailed, "Broadcasting ExpireCache: {0}", key);
         }
         public void BroadcastExpireCache(string cacheName, string key, string itemKey)
         {
             var args = new Dictionary<string, object>() { { "clientId", ClientId }, { "cacheName", cacheName }, { "key", key }, { "itemKey", itemKey } };
             _proxy.Invoke<Dictionary<string, object>>("ExpireItemCache", args);
-            log(Service.LoggingLevel.Detailed, "Broadcasting ExpireCache: {0}:{1}", key, itemKey);
+            log(Logging.LoggingLevel.Detailed, "Broadcasting ExpireCache: {0}:{1}", key, itemKey);
         }
 
         private void onMessage(string clientId, string message)
         {
-            log(Service.LoggingLevel.Detailed, "Received Message: {0}", message);
+            log(Logging.LoggingLevel.Detailed, "Received Message: {0}", message);
             if (OnMessage != null)
                 OnMessage(clientId, message);
         }
 
         private void onExpireCache(string cacheName, string key)
         {
-            log(Service.LoggingLevel.Detailed, "Received Expire: {0}", key);
+            log(Logging.LoggingLevel.Detailed, "Received Expire: {0}", key);
             if (OnExpire != null)
                 OnExpire(cacheName, key);
         }
         private void onExpireItemCache(string cacheName, string key, string itemKey)
         {
-            log(Service.LoggingLevel.Detailed, "Received Expire Item: {0}:{1}", key, itemKey);
+            log(Logging.LoggingLevel.Detailed, "Received Expire Item: {0}:{1}", key, itemKey);
             if (OnExpireItem != null)
                 OnExpireItem(cacheName, key, itemKey);
         }
 
         private void onError(Exception ex)
         {
-            log(Service.LoggingLevel.Minimal, "Error: {0}", ex.ToString());
+            log(Logging.LoggingLevel.Minimal, "Error: {0}", ex.ToString());
             //todo: expire all caches, we died!
             if (OnError != null)
                 OnError(ex);
         }
         private void onConnectionSlow()
         {
-            log(Service.LoggingLevel.Detailed, "Connection Slow");
+            log(Logging.LoggingLevel.Detailed, "Connection Slow");
             onMessage(ClientId, "Connection Slow...");
         }
 
@@ -103,21 +103,19 @@ namespace CodeEndeavors.Distributed.Cache.Client.SignalR
             if (_hubConnection != null)
             {
                 _hubConnection.Dispose();
-                log(Service.LoggingLevel.Minimal, "Disposed");
+                log(Logging.LoggingLevel.Minimal, "Disposed");
             }
         }
 
         #region Logging
-        public event Action<Service.LoggingLevel, string> OnLoggingMessage;
 
-        protected void log(Service.LoggingLevel level, string msg)
+        protected void log(Logging.LoggingLevel level, string msg)
         {
             log(level, msg, "");
         }
-        protected void log(Service.LoggingLevel level, string msg, params object[] args)
+        protected void log(Logging.LoggingLevel level, string msg, params object[] args)
         {
-            if (OnLoggingMessage != null)
-                OnLoggingMessage(level, string.Format("[{0}:{1}] - {2}", Name, ClientId, string.Format(msg, args)));
+            Logging.Log(level, string.Format("[{0}:{1}] - {2}", Name, ClientId, string.Format(msg, args)));
         }
         #endregion
     }

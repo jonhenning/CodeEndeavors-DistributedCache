@@ -33,7 +33,7 @@ namespace CodeEndeavors.Distributed.Cache.Client.Redis
 
             BroadcastMessage(string.Format("Redis {0} client connected on: {1}", clientId, server));
 
-            log(Service.LoggingLevel.Minimal, "Initialized");
+            log(Logging.LoggingLevel.Minimal, "Initialized");
             return true;
         }
 
@@ -42,7 +42,7 @@ namespace CodeEndeavors.Distributed.Cache.Client.Redis
             var args = new Dictionary<string, object>() { { "clientId", ClientId }, { "message", message } };
             var subscriber = _multiplexer.GetSubscriber();
             subscriber.Publish("RedisNotifier.serverMessage", args.ToJson());
-            log(Service.LoggingLevel.Detailed, "Broadcasting Message: " + message);
+            log(Logging.LoggingLevel.Detailed, "Broadcasting Message: " + message);
         }
 
         public void BroadcastExpireCache(string cacheName, string key)
@@ -50,19 +50,19 @@ namespace CodeEndeavors.Distributed.Cache.Client.Redis
             var args = new Dictionary<string, object>() { { "clientId", ClientId }, { "cacheName", cacheName }, { "key", key } };
             var subscriber = _multiplexer.GetSubscriber();
             subscriber.Publish("RedisNotifier.expireCache", args.ToJson());
-            log(Service.LoggingLevel.Detailed, "Broadcasting ExpireCache: {0}", key);
+            log(Logging.LoggingLevel.Detailed, "Broadcasting ExpireCache: {0}", key);
         }
         public void BroadcastExpireCache(string cacheName, string key, string itemKey)
         {
             var args = new Dictionary<string, object>() { { "clientId", ClientId }, { "cacheName", cacheName }, { "key", key }, { "itemKey", itemKey } };
             var subscriber = _multiplexer.GetSubscriber();
             subscriber.Publish("RedisNotifier.expireItemCache", args.ToJson());
-            log(Service.LoggingLevel.Detailed, "Broadcasting ExpireCache: {0}:{1}", key, itemKey);
+            log(Logging.LoggingLevel.Detailed, "Broadcasting ExpireCache: {0}:{1}", key, itemKey);
         }
 
         private void onMessage(RedisChannel channel, RedisValue value)
         {
-            log(Service.LoggingLevel.Detailed, "Received Message: {0}", value.ToString());
+            log(Logging.LoggingLevel.Detailed, "Received Message: {0}", value.ToString());
 
             var dict = value.ToString().ToObject<Dictionary<string, string>>();
             if (OnMessage != null)
@@ -71,14 +71,14 @@ namespace CodeEndeavors.Distributed.Cache.Client.Redis
 
         private void onExpireCache(RedisChannel channel, RedisValue value)
         {
-            log(Service.LoggingLevel.Detailed, "Received Expire: {0}", value.ToJson());
+            log(Logging.LoggingLevel.Detailed, "Received Expire: {0}", value.ToJson());
             var dict = value.ToString().ToObject<Dictionary<string, string>>();
             if (OnExpire != null)
                 OnExpire(dict["cacheName"], dict["key"]);
         }
         private void onExpireItemCache(RedisChannel channel, RedisValue value)
         {
-            log(Service.LoggingLevel.Detailed, "Received Expire Item: {0}", value.ToJson());
+            log(Logging.LoggingLevel.Detailed, "Received Expire Item: {0}", value.ToJson());
 
             var dict = value.ToString().ToObject<Dictionary<string, string>>();
             if (OnExpireItem != null)
@@ -87,7 +87,7 @@ namespace CodeEndeavors.Distributed.Cache.Client.Redis
 
         private void onError(Exception ex)
         {
-            log(Service.LoggingLevel.Minimal, "Error: {0}", ex.ToString());
+            log(Logging.LoggingLevel.Minimal, "Error: {0}", ex.ToString());
 
             //todo: expire all caches, we died!
             if (OnError != null)
@@ -99,21 +99,18 @@ namespace CodeEndeavors.Distributed.Cache.Client.Redis
             if (_multiplexer != null)
             {
                 _multiplexer.Dispose();
-                log(Service.LoggingLevel.Minimal, "Disposed");
+                log(Logging.LoggingLevel.Minimal, "Disposed");
             }
         }
 
         #region Logging
-        public event Action<Service.LoggingLevel, string> OnLoggingMessage;
-
-        protected void log(Service.LoggingLevel level, string msg)
+        protected void log(Logging.LoggingLevel level, string msg)
         {
             log(level, msg, "");
         }
-        protected void log(Service.LoggingLevel level, string msg, params object[] args)
+        protected void log(Logging.LoggingLevel level, string msg, params object[] args)
         {
-            if (OnLoggingMessage != null)
-                OnLoggingMessage(level, string.Format("[{0}:{1}] - {2}", Name, ClientId, msg.IndexOf("{0}") > -1 ? string.Format(msg, args) : msg));
+            Logging.Log(level, string.Format("[{0}:{1}] - {2}", Name, ClientId, msg.IndexOf("{0}") > -1 ? string.Format(msg, args) : msg));
         }
         #endregion
     }
