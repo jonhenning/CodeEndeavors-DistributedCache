@@ -14,6 +14,7 @@ namespace CodeEndeavors.Distributed.Cache.Client.Redis
         private ConnectionMultiplexer _multiplexer = null;
 
         private string _cacheName;
+        private Dictionary<string, object> _connection = new Dictionary<string, object>();
 
         public string ClientId {get ;set; }
         public string Name { get { return "RedisCache"; } }
@@ -22,11 +23,11 @@ namespace CodeEndeavors.Distributed.Cache.Client.Redis
 
         public bool Initialize(string cacheName, string clientId, string notifierName, string connection)
         {
-            var connectionDict = connection.ToObject<Dictionary<string, object>>();
+            _connection = connection.ToObject<Dictionary<string, object>>();
 
             ClientId = clientId;
             _cacheName = cacheName;
-            var server = connectionDict.GetSetting("server", "");
+            var server = _connection.GetSetting("server", "");
 
             _multiplexer = ConnectionMultiplexer.Connect(server);
 
@@ -86,13 +87,42 @@ namespace CodeEndeavors.Distributed.Cache.Client.Redis
 
         public void Set<T>(string key, T value)
         {
-            var json = value.ToJson(false, "db");   //todo: this is really hacky that at this level we are imposing the serialization rules from resourcemanager here - db
-            _multiplexer.GetDatabase().StringSet(key, json);
+            SetExp<T>(key, null, value);
         }
-        public void Set<T>(string key, string itemKey, T value)
+        public void SetExp<T>(string key, TimeSpan? absoluteExpiration, T value)
         {
             var json = value.ToJson(false, "db");   //todo: this is really hacky that at this level we are imposing the serialization rules from resourcemanager here - db
+
+            if (!absoluteExpiration.HasValue && _connection.ContainsKey("absoluteExpiration"))
+                absoluteExpiration = _connection.GetSetting("absoluteExpiration", "'00:00:00'").ToObject<TimeSpan>();
+
+            _multiplexer.GetDatabase().StringSet(key, json, expiry: absoluteExpiration);
+        }
+
+        public void Set<T>(string key, string itemKey, T value)
+        {
+            SetExp<T>(key, itemKey, null, value);
+        }
+
+        /// <summary>
+        /// Setting cache entry in hash with potential absoluteExpiration
+        /// Expiration applies to entire hash, therefore the expiration will only apply on the initial create of the hash
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="key">Hash key</param>
+        /// <param name="itemKey">Hash item key</param>
+        /// <param name="absoluteExpiration">Span of time to cache entire hash</param>
+        /// <param name="value">value to cache</param>
+        public void SetExp<T>(string key, string itemKey, TimeSpan? absoluteExpiration, T value)
+        {
+            var json = value.ToJson(false, "db");   //todo: this is really hacky that at this level we are imposing the serialization rules from resourcemanager here - db
+            var isFirstEntryInHash = !_multiplexer.GetDatabase().KeyExists(key);
             _multiplexer.GetDatabase().HashSet(key, itemKey, json);
+
+            if (!absoluteExpiration.HasValue && _connection.ContainsKey("absoluteExpiration"))
+                absoluteExpiration = _connection.GetSetting("absoluteExpiration", "'00:00:00'").ToObject<TimeSpan>();
+            if (isFirstEntryInHash && absoluteExpiration.HasValue)
+                _multiplexer.GetDatabase().KeyExpire(key, DateTime.Now.Add(absoluteExpiration.Value));
         }
 
         public bool Remove(string key)

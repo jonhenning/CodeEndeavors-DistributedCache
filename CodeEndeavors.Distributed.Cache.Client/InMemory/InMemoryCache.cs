@@ -7,7 +7,7 @@ namespace CodeEndeavors.Distributed.Cache.Client.InMemory
 {
     public class InMemoryCache : ICache 
     {
-        private string _connection;
+        private Dictionary<string, object> _connection = new Dictionary<string,object>();
         private string _cacheName;
 
         public string ClientId {get;set;}
@@ -17,11 +17,10 @@ namespace CodeEndeavors.Distributed.Cache.Client.InMemory
 
         public bool Initialize(string cacheName, string clientId, string notifierName, string connection)
         {
-            _connection = connection;
             _cacheName = cacheName;
             ClientId = clientId;
             NotifierName = notifierName;
-            var connectionDict = connection.ToObject<Dictionary<string, object>>();
+            _connection = connection.ToObject<Dictionary<string, object>>();
 
             log(Logging.LoggingLevel.Minimal, "Initialized");
             return true;
@@ -69,13 +68,32 @@ namespace CodeEndeavors.Distributed.Cache.Client.InMemory
 
         public void Set<T>(string key, T value)
         {
-            var policy = new CacheItemPolicy(); 
-            MemoryCache.Default.Set(key, value, policy);
-
+            SetExp<T>(key, null, value);
         }
+        public void SetExp<T>(string key, TimeSpan? absoluteExpiration, T value)
+        {
+            MemoryCache.Default.Set(key, value, getCacheItemPolicy(absoluteExpiration));
+        }
+
+        private CacheItemPolicy getCacheItemPolicy(TimeSpan? absoluteExpiration)
+        {
+            var policy = new CacheItemPolicy();
+            if (_connection.ContainsKey("slidingExpiration"))
+                policy.SlidingExpiration = _connection.GetSetting("slidingExpiration", "'00:00:00'").ToObject<TimeSpan>();
+            if (!absoluteExpiration.HasValue && _connection.ContainsKey("absoluteExpiration"))
+                absoluteExpiration = _connection.GetSetting("absoluteExpiration", "'00:00:00'").ToObject<TimeSpan>();
+            if (absoluteExpiration.HasValue)
+                policy.AbsoluteExpiration = DateTimeOffset.Now.Add(absoluteExpiration.Value);
+            return policy;
+        }
+
         public void Set<T>(string key, string itemKey, T value)
         {
-            var dict = getItemDictionary(key, true);
+            SetExp<T>(key, itemKey, null, value);
+        }
+        public void SetExp<T>(string key, string itemKey, TimeSpan? absoluteExpiration, T value)
+        {
+            var dict = getItemDictionary(key, true, absoluteExpiration);
             dict[itemKey] = value;
         }
 
@@ -98,16 +116,20 @@ namespace CodeEndeavors.Distributed.Cache.Client.InMemory
 
         private Dictionary<string, object> getItemDictionary(string key)
         {
-            return getItemDictionary(key, false);
+            return getItemDictionary(key, false, null);
         }
         private Dictionary<string, object> getItemDictionary(string key, bool insertIfMissing)
+        {
+            return getItemDictionary(key, insertIfMissing, null);
+        }
+        private Dictionary<string, object> getItemDictionary(string key, bool insertIfMissing, TimeSpan? absoluteExpiration)
         {
             var dict = MemoryCache.Default.Get(key) as Dictionary<string, object>;
             if (dict == null)
             {
                 dict = new Dictionary<string, object>();
                 if (insertIfMissing)
-                    Set(key, dict);
+                    SetExp(key, absoluteExpiration, dict);
             }
             return dict;
         }

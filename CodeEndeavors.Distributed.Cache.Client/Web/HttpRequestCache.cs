@@ -83,7 +83,18 @@ namespace CodeEndeavors.Distributed.Cache.Client.Web
         {
             requestDictionary[key] = value;
         }
+        public void SetExp<T>(string key, TimeSpan? absoluteExpiration, T value)   //ignoring expiration as httprequest already has short lifespan
+        {
+            requestDictionary[key] = value;
+        }
+
         public void Set<T>(string key, string itemKey, T value)
+        {
+            var dict = getItemDictionary(key, true);
+            dict[itemKey] = value;
+        }
+
+        public void SetExp<T>(string key, string itemKey, TimeSpan? absoluteExpiration, T value) //ignoring expiration as httprequest already has short lifespan
         {
             var dict = getItemDictionary(key, true);
             dict[itemKey] = value;

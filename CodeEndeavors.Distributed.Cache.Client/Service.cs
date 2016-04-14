@@ -51,8 +51,17 @@ namespace CodeEndeavors.Distributed.Cache.Client
         {
             return GetCacheEntry<T>(cacheName, cacheKey, lookupFunc, null);
         }
-
         public static T GetCacheEntry<T>(string cacheName, string cacheKey, Func<T> lookupFunc, dynamic monitorOptions)
+        {
+            return GetCacheEntry(cacheName, (TimeSpan?)null, cacheKey, lookupFunc, monitorOptions);
+        }
+
+        public static T GetCacheEntry<T>(string cacheName, TimeSpan? absoluteExpiration, string cacheKey, Func<T> lookupFunc)
+        {
+            return GetCacheEntry<T>(cacheName, cacheKey, lookupFunc, null);
+        }
+
+        public static T GetCacheEntry<T>(string cacheName, TimeSpan? absoluteExpiration, string cacheKey, Func<T> lookupFunc, dynamic monitorOptions)
         {
             var cache = getCache(cacheName);
             
@@ -68,7 +77,7 @@ namespace CodeEndeavors.Distributed.Cache.Client
                             item = lookupFunc();
                         //cache.Set(cacheKey, item);
                         //SetCacheEntry(cacheName, cacheKey, item, monitorOptions);
-                        SetCacheEntry(cacheName, cacheKey, item);
+                        SetCacheEntry<T>(cacheName, absoluteExpiration, cacheKey, item);
                         Logging.Log(Logging.LoggingLevel.Minimal, "Retrieved cache entry {0}:{1}", cacheName, cacheKey);
                     }
                     else
@@ -99,6 +108,11 @@ namespace CodeEndeavors.Distributed.Cache.Client
         /// <returns>results (either cached or looked up) from lookupFunc</returns>
         public static T GetCacheEntry<T>(string cacheName, string cacheKey, string itemKey, Func<T> lookupFunc)
         {
+            return GetCacheEntry<T>(cacheName, null, cacheKey, itemKey, lookupFunc);
+        }
+
+        public static T GetCacheEntry<T>(string cacheName, TimeSpan? absoluteExpiration, string cacheKey, string itemKey, Func<T> lookupFunc)
+        {
             var cache = getCache(cacheName);
 
             T item = default(T);
@@ -111,7 +125,7 @@ namespace CodeEndeavors.Distributed.Cache.Client
                     {
                         using (new Client.OperationTimer("GetCacheEntry (lookup): {0}:{1}:{2}", cacheName, cacheKey, itemKey))
                             item = lookupFunc();
-                        cache.Set(cacheKey, itemKey, item);
+                        cache.SetExp(cacheKey, itemKey, absoluteExpiration, item);
                         Logging.Log(Logging.LoggingLevel.Minimal, "Retrieved cache entry {0}:{1}:{2}", cacheName, cacheKey, itemKey);
                     }
                     else
@@ -134,6 +148,11 @@ namespace CodeEndeavors.Distributed.Cache.Client
         /// <returns>results (either cached or looked up) from lookupFunc</returns>
         public static Dictionary<string, T> GetCacheEntry<T>(string cacheName, string cacheKey, List<string> itemKeys, Func<List<string>, Dictionary<string, T>> lookupFunc)
         {
+            return GetCacheEntry<T>(cacheName, null, cacheKey, itemKeys, lookupFunc);
+        }
+
+        public static Dictionary<string, T> GetCacheEntry<T>(string cacheName, TimeSpan? absoluteExpiration, string cacheKey, List<string> itemKeys, Func<List<string>, Dictionary<string, T>> lookupFunc)
+        {
             var ret = new Dictionary<string, T>();
 
             var cache = getCache(cacheName);
@@ -152,7 +171,7 @@ namespace CodeEndeavors.Distributed.Cache.Client
             {
                 var newValues = lookupFunc.Invoke(keysToLookup);
                 foreach (var itemKey in newValues.Keys)
-                    cache.Set(cacheKey, itemKey, newValues[itemKey]);
+                    cache.SetExp(cacheKey, itemKey, absoluteExpiration, newValues[itemKey]);
                 ret.Merge(newValues, false);
                 Logging.Log(Logging.LoggingLevel.Minimal, "Retrieved cache entries {0} {1}", cacheName, keysToLookup.ToJson());
             }
@@ -172,9 +191,19 @@ namespace CodeEndeavors.Distributed.Cache.Client
         }
         public static void SetCacheEntry<T>(string cacheName, string cacheKey, T value, dynamic monitorOptions)
         {
+            SetCacheEntry<T>(cacheName, null, cacheKey, value, monitorOptions);
+        }
+
+        public static void SetCacheEntry<T>(string cacheName, TimeSpan? absoluteExpiration, string cacheKey, T value)
+        {
+            SetCacheEntry<T>(cacheName, absoluteExpiration, cacheKey, value, null);
+        }
+
+        public static void SetCacheEntry<T>(string cacheName, TimeSpan? absoluteExpiration, string cacheKey, T value, dynamic monitorOptions)
+        {
             using (new Client.OperationTimer("SetCacheEntry: {0}:{1}", cacheName, cacheKey))
             {
-                getCache(cacheName).Set<T>(cacheKey, value);
+                getCache(cacheName).SetExp<T>(cacheKey, absoluteExpiration, value);
                 //if (!string.IsNullOrEmpty(monitorOptions))
                 if (monitorOptions != null)
                     RegisterMonitor(cacheName, cacheKey, monitorOptions);
