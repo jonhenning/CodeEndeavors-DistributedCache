@@ -178,7 +178,21 @@ namespace CodeEndeavors.Distributed.Cache.SampleClient
                             Console.WriteLine("Calling ListPush({0}, {1}, {2})", cacheName, key, value);
                             Service.ListPush(cacheName, key, value, monitorOptions);
                         }
-
+                        else if (command.StartsWith("adddependency "))
+                        {
+                            var type = command.Split(' ')[1];
+                            var typeKey = command.Split(' ')[2];
+                            var key = command.Split(' ')[3];
+                            Console.WriteLine("Calling AddCacheDependency({0}, {1}, {2}, {3})", cacheName, type, typeKey, key);
+                            Service.AddCacheDependency(cacheName, type, typeKey, key);
+                        }
+                        else if (command.StartsWith("expiredependencies "))
+                        {
+                            var type = command.Split(' ')[1];
+                            var typeKey = command.Split(' ')[2];
+                            Console.WriteLine("Calling ExpireCacheDependencies({0}, {1}, {2})", cacheName, type, typeKey);
+                            Service.ExpireCacheDependencies(cacheName, type, typeKey);
+                        }
                         else if (command.StartsWith("expire "))
                         {
                             var a = command.Split(' ');

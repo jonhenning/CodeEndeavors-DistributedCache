@@ -47,9 +47,32 @@ namespace CodeEndeavors.Distributed.Cache.Client.Redis
 
         public T Get<T>(string key, T defaultValue)
         {
-            var value = _multiplexer.GetDatabase().StringGet(key);
-            if (value.HasValue)
-                return value.ToString().ToObject<T>();
+            var type = _multiplexer.GetDatabase().KeyType(key);
+            if (type == RedisType.String)
+            {
+                var value = _multiplexer.GetDatabase().StringGet(key);
+                if (value.HasValue)
+                    return value.ToString().ToObject<T>();
+            }
+            else if (type == RedisType.List)
+            {
+                var value = _multiplexer.GetDatabase().ListRange(key);
+                if (value != null)
+                    return value.ToJson().ToObject<T>();    
+            }
+            else if (type == RedisType.Hash)
+            {
+                var value = _multiplexer.GetDatabase().HashGetAll(key);
+                if (value != null)
+                    return value.ToJson().ToObject<T>();    
+            }
+            else if (type == RedisType.None)
+            {
+                return defaultValue;
+            }
+            else
+                throw new Exception("RedisType not supported: " + type.ToString());
+
             return defaultValue;
         }
 
@@ -97,7 +120,11 @@ namespace CodeEndeavors.Distributed.Cache.Client.Redis
 
         public void ListPush<T>(string key, TimeSpan? absoluteExpiration, T[] values)
         {
-            var redisValues = Array.ConvertAll(values, item => (RedisValue)item.ToJson());
+            RedisValue[] redisValues = null;
+            if (typeof(T) == typeof(string))
+                redisValues = Array.ConvertAll(values, item => (RedisValue)item.ToString());
+            else
+                redisValues = Array.ConvertAll(values, item => (RedisValue)item.ToJson());
             var listExists = _multiplexer.GetDatabase().KeyExists(key);
             _multiplexer.GetDatabase().ListRightPush(key, redisValues);
 

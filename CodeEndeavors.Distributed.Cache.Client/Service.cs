@@ -314,18 +314,31 @@ namespace CodeEndeavors.Distributed.Cache.Client
                 expireCacheItemEntry(cacheName, cacheKey, itemKey, true);
         }
 
-        //public static bool AddCacheDependency(string cacheName, string type, string typeKey, string cacheKey)
-        //{
-        //    //NEEDS TO BE A LIST!?!??!?!?!?!?!?!?!??!??!?
-        //    //getCache(cacheName).Set(type, typeKey, )
+        /// <summary>
+        /// Maintains a list of cachekeys dependent upon a type:typeKey entry
+        /// </summary>
+        /// <param name="cacheName">Name of cache to get results from</param>
+        /// <param name="type">Type of dependency (i.e. Table)</param>
+        /// <param name="typeKey">Key of type dependency (i.e. TableName)</param>
+        /// <param name="cacheKey">Cache key</param>
+        public static void AddCacheDependency(string cacheName, string type, string typeKey, string cacheKey)
+        {
+            AddCacheDependency(cacheName, null, type, typeKey, cacheKey);
+        }
 
-        //}
+        public static void AddCacheDependency(string cacheName, TimeSpan? absoluteExpiration, string type, string typeKey, string cacheKey)
+        {
+            ListPush(cacheName, string.Format("{0}:{1}", type, typeKey), cacheKey);
+        }
 
-        //public static bool ExpireCacheDependencies(string type, string typeKey)
-        //{
-
-
-        //}
+        public static void ExpireCacheDependencies(string cacheName, string type, string typeKey)
+        {
+            var key = string.Format("{0}:{1}", type, typeKey);
+            var entries = GetCacheEntry(cacheName, key, new List<object>());
+            foreach (var cacheKey in entries)
+                ExpireCacheEntry(cacheName, cacheKey.ToString());
+            RemoveCacheEntry(cacheName, key);
+        }
 
         /// <summary>
         /// Registers a cache to be used
