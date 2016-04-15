@@ -125,12 +125,12 @@ namespace CodeEndeavors.Distributed.Cache.Client.Redis
                 redisValues = Array.ConvertAll(values, item => (RedisValue)item.ToString());
             else
                 redisValues = Array.ConvertAll(values, item => (RedisValue)item.ToJson());
-            var listExists = _multiplexer.GetDatabase().KeyExists(key);
+            var listNotExist = !_multiplexer.GetDatabase().KeyExists(key);
             _multiplexer.GetDatabase().ListRightPush(key, redisValues);
 
             if (!absoluteExpiration.HasValue && _connection.ContainsKey("absoluteExpiration"))
                 absoluteExpiration = _connection.GetSetting("absoluteExpiration", "'00:00:00'").ToObject<TimeSpan>();
-            if (listExists && absoluteExpiration.HasValue)
+            if (listNotExist && absoluteExpiration.HasValue)
                 _multiplexer.GetDatabase().KeyExpire(key, DateTime.Now.Add(absoluteExpiration.Value));
         }
 
@@ -146,12 +146,12 @@ namespace CodeEndeavors.Distributed.Cache.Client.Redis
         public void Set<T>(string key, string itemKey, TimeSpan? absoluteExpiration, T value)
         {
             var json = value.ToJson(false, "db");   //todo: this is really hacky that at this level we are imposing the serialization rules from resourcemanager here - db
-            var hashExists = !_multiplexer.GetDatabase().KeyExists(key);
+            var hashNotExist = !_multiplexer.GetDatabase().KeyExists(key);
             _multiplexer.GetDatabase().HashSet(key, itemKey, json);
 
             if (!absoluteExpiration.HasValue && _connection.ContainsKey("absoluteExpiration"))
                 absoluteExpiration = _connection.GetSetting("absoluteExpiration", "'00:00:00'").ToObject<TimeSpan>();
-            if (hashExists && absoluteExpiration.HasValue)
+            if (hashNotExist && absoluteExpiration.HasValue)
                 _multiplexer.GetDatabase().KeyExpire(key, DateTime.Now.Add(absoluteExpiration.Value));
         }
 
