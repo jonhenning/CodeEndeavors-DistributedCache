@@ -125,7 +125,7 @@ namespace CodeEndeavors.Distributed.Cache.Client
                     {
                         using (new Client.OperationTimer("GetCacheEntry (lookup): {0}:{1}:{2}", cacheName, cacheKey, itemKey))
                             item = lookupFunc();
-                        cache.SetExp(cacheKey, itemKey, absoluteExpiration, item);
+                        cache.Set(cacheKey, itemKey, absoluteExpiration, item);
                         Logging.Log(Logging.LoggingLevel.Minimal, "Retrieved cache entry {0}:{1}:{2}", cacheName, cacheKey, itemKey);
                     }
                     else
@@ -171,7 +171,7 @@ namespace CodeEndeavors.Distributed.Cache.Client
             {
                 var newValues = lookupFunc.Invoke(keysToLookup);
                 foreach (var itemKey in newValues.Keys)
-                    cache.SetExp(cacheKey, itemKey, absoluteExpiration, newValues[itemKey]);
+                    cache.Set(cacheKey, itemKey, absoluteExpiration, newValues[itemKey]);
                 ret.Merge(newValues, false);
                 Logging.Log(Logging.LoggingLevel.Minimal, "Retrieved cache entries {0} {1}", cacheName, keysToLookup.ToJson());
             }
@@ -203,8 +203,39 @@ namespace CodeEndeavors.Distributed.Cache.Client
         {
             using (new Client.OperationTimer("SetCacheEntry: {0}:{1}", cacheName, cacheKey))
             {
-                getCache(cacheName).SetExp<T>(cacheKey, absoluteExpiration, value);
+                getCache(cacheName).Set<T>(cacheKey, absoluteExpiration, value);
                 //if (!string.IsNullOrEmpty(monitorOptions))
+                if (monitorOptions != null)
+                    RegisterMonitor(cacheName, cacheKey, monitorOptions);
+            }
+        }
+
+        /// <summary>
+        /// Creates list if one does not already exist and adds item to it
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="cacheName">Name of cache to store results in</param>
+        /// <param name="cacheKey">Key in cache where entry is stored</param>
+        /// <param name="value"></param>
+        /// <param name="monitorOptions"></param>
+        public static void ListPush<T>(string cacheName, string cacheKey, T value, dynamic monitorOptions = null)
+        {
+            ListPush<T>(cacheName, cacheKey, new T[] { value }, monitorOptions);
+        }
+        public static void ListPush<T>(string cacheName, string cacheKey, T[] values, dynamic monitorOptions = null)
+        {
+            ListPush<T>(cacheName, null, cacheKey, values, monitorOptions);
+        }
+
+        public static void ListPush<T>(string cacheName, TimeSpan? absoluteExpiration, string cacheKey, T value, dynamic monitorOptions = null)
+        {
+            ListPush<T>(cacheName, absoluteExpiration, cacheKey, new T[] { value }, monitorOptions);
+        }
+        public static void ListPush<T>(string cacheName, TimeSpan? absoluteExpiration, string cacheKey, T[] values, dynamic monitorOptions = null)
+        {
+            using (new Client.OperationTimer("ListPush: {0}:{1}", cacheName, cacheKey))
+            {
+                getCache(cacheName).ListPush<T>(cacheKey, absoluteExpiration, values);
                 if (monitorOptions != null)
                     RegisterMonitor(cacheName, cacheKey, monitorOptions);
             }
@@ -282,6 +313,19 @@ namespace CodeEndeavors.Distributed.Cache.Client
             using (new Client.OperationTimer("ExpireCacheEntry: {0}:{1}:{2}", cacheName, cacheKey, itemKey))
                 expireCacheItemEntry(cacheName, cacheKey, itemKey, true);
         }
+
+        //public static bool AddCacheDependency(string cacheName, string type, string typeKey, string cacheKey)
+        //{
+        //    //NEEDS TO BE A LIST!?!??!?!?!?!?!?!?!??!??!?
+        //    //getCache(cacheName).Set(type, typeKey, )
+
+        //}
+
+        //public static bool ExpireCacheDependencies(string type, string typeKey)
+        //{
+
+
+        //}
 
         /// <summary>
         /// Registers a cache to be used

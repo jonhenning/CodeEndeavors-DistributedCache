@@ -22,11 +22,10 @@ namespace CodeEndeavors.Distributed.Cache.Client
         bool GetExists<T>(string key, out T entry);
         bool GetExists<T>(string key, string itemKey, out T entry);
 
-        void Set<T>(string key, T value);
-        void Set<T>(string key, string itemKey, T value);
+        void Set<T>(string key, TimeSpan? absoluteExpiration, T value);
+        void Set<T>(string key, string itemKey, TimeSpan? absoluteExpiration, T value);
 
-        void SetExp<T>(string key, TimeSpan? absoluteExpiration, T value);
-        void SetExp<T>(string key, string itemKey, TimeSpan? absoluteExpiration, T value);
+        void ListPush<T>(string key, TimeSpan? absoluteExpiration, T[] values);
 
         bool Remove(string key);
         bool Remove(string key, string itemKey);

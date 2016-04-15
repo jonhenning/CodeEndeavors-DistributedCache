@@ -171,6 +171,14 @@ namespace CodeEndeavors.Distributed.Cache.SampleClient
                                 return keys.Select(k => new {key = k, value = DateTime.Now.ToString()}).ToDictionary(x => x.key, x => x.value);
                             }).ToJson(true));
                         }
+                        else if (command.StartsWith("listpush "))
+                        {
+                            var key = command.Split(' ')[1];
+                            var value = command.Split(' ')[2];
+                            Console.WriteLine("Calling ListPush({0}, {1}, {2})", cacheName, key, value);
+                            Service.ListPush(cacheName, key, value, monitorOptions);
+                        }
+
                         else if (command.StartsWith("expire "))
                         {
                             var a = command.Split(' ');

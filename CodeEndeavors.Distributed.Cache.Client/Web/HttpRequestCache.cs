@@ -79,25 +79,22 @@ namespace CodeEndeavors.Distributed.Cache.Client.Web
             return getItemDictionary(key).GetSetting<T>(itemKey, defaultValue);
         }
 
-        public void Set<T>(string key, T value)
-        {
-            requestDictionary[key] = value;
-        }
-        public void SetExp<T>(string key, TimeSpan? absoluteExpiration, T value)   //ignoring expiration as httprequest already has short lifespan
+        public void Set<T>(string key, TimeSpan? absoluteExpiration, T value)   //ignoring expiration as httprequest already has short lifespan
         {
             requestDictionary[key] = value;
         }
 
-        public void Set<T>(string key, string itemKey, T value)
+        public void Set<T>(string key, string itemKey, TimeSpan? absoluteExpiration, T value) //ignoring expiration as httprequest already has short lifespan
         {
             var dict = getItemDictionary(key, true);
             dict[itemKey] = value;
         }
 
-        public void SetExp<T>(string key, string itemKey, TimeSpan? absoluteExpiration, T value) //ignoring expiration as httprequest already has short lifespan
+        public void ListPush<T>(string key, TimeSpan? absoluteExpiration, T[] values)    //ignoring expiration as httprequest already has short lifespan
         {
-            var dict = getItemDictionary(key, true);
-            dict[itemKey] = value;
+            var list = getList(key, true);
+            foreach (var v in values)
+                list.Add(v);
         }
 
         public bool Remove(string key)
@@ -124,6 +121,14 @@ namespace CodeEndeavors.Distributed.Cache.Client.Web
         private Dictionary<string, object> getItemDictionary(string key, bool insertIfMissing)
         {
             return requestDictionary.GetSetting(key, new Dictionary<string, object>(), insertIfMissing);
+        }
+        private List<object> getList(string key)
+        {
+            return getList(key, false);
+        }
+        private List<object> getList(string key, bool insertIfMissing)
+        {
+            return requestDictionary.GetSetting(key, new List<object>(), insertIfMissing);
         }
 
         public void Dispose()

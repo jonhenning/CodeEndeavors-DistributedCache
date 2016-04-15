@@ -66,35 +66,22 @@ namespace CodeEndeavors.Distributed.Cache.Client.InMemory
             return getItemDictionary(key).GetSetting<T>(itemKey, defaultValue);
         }
 
-        public void Set<T>(string key, T value)
-        {
-            SetExp<T>(key, null, value);
-        }
-        public void SetExp<T>(string key, TimeSpan? absoluteExpiration, T value)
+        public void Set<T>(string key, TimeSpan? absoluteExpiration, T value)
         {
             MemoryCache.Default.Set(key, value, getCacheItemPolicy(absoluteExpiration));
         }
 
-        private CacheItemPolicy getCacheItemPolicy(TimeSpan? absoluteExpiration)
-        {
-            var policy = new CacheItemPolicy();
-            if (_connection.ContainsKey("slidingExpiration"))
-                policy.SlidingExpiration = _connection.GetSetting("slidingExpiration", "'00:00:00'").ToObject<TimeSpan>();
-            if (!absoluteExpiration.HasValue && _connection.ContainsKey("absoluteExpiration"))
-                absoluteExpiration = _connection.GetSetting("absoluteExpiration", "'00:00:00'").ToObject<TimeSpan>();
-            if (absoluteExpiration.HasValue)
-                policy.AbsoluteExpiration = DateTimeOffset.Now.Add(absoluteExpiration.Value);
-            return policy;
-        }
-
-        public void Set<T>(string key, string itemKey, T value)
-        {
-            SetExp<T>(key, itemKey, null, value);
-        }
-        public void SetExp<T>(string key, string itemKey, TimeSpan? absoluteExpiration, T value)
+        public void Set<T>(string key, string itemKey, TimeSpan? absoluteExpiration, T value)
         {
             var dict = getItemDictionary(key, true, absoluteExpiration);
             dict[itemKey] = value;
+        }
+
+        public void ListPush<T>(string key, TimeSpan? absoluteExpiration, T[] values)
+        {
+            var list = getList(key, true, absoluteExpiration);
+            foreach (var v in values)
+                list.Add(v);
         }
 
         public bool Remove(string key)
@@ -114,6 +101,18 @@ namespace CodeEndeavors.Distributed.Cache.Client.InMemory
             return MemoryCache.Default.Remove(key) != null;
         }
 
+        private CacheItemPolicy getCacheItemPolicy(TimeSpan? absoluteExpiration)
+        {
+            var policy = new CacheItemPolicy();
+            if (_connection.ContainsKey("slidingExpiration"))
+                policy.SlidingExpiration = _connection.GetSetting("slidingExpiration", "'00:00:00'").ToObject<TimeSpan>();
+            if (!absoluteExpiration.HasValue && _connection.ContainsKey("absoluteExpiration"))
+                absoluteExpiration = _connection.GetSetting("absoluteExpiration", "'00:00:00'").ToObject<TimeSpan>();
+            if (absoluteExpiration.HasValue)
+                policy.AbsoluteExpiration = DateTimeOffset.Now.Add(absoluteExpiration.Value);
+            return policy;
+        }
+
         private Dictionary<string, object> getItemDictionary(string key)
         {
             return getItemDictionary(key, false, null);
@@ -129,9 +128,29 @@ namespace CodeEndeavors.Distributed.Cache.Client.InMemory
             {
                 dict = new Dictionary<string, object>();
                 if (insertIfMissing)
-                    SetExp(key, absoluteExpiration, dict);
+                    Set(key, absoluteExpiration, dict);
             }
             return dict;
+        }
+
+        private List<object> getList(string key)
+        {
+            return getList(key, false, null);
+        }
+        private List<object> getList(string key, bool insertIfMissing)
+        {
+            return getList(key, insertIfMissing, null);
+        }
+        private List<object> getList(string key, bool insertIfMissing, TimeSpan? absoluteExpiration)
+        {
+            var list = MemoryCache.Default.Get(key) as List<object>;
+            if (list == null)
+            {
+                list = new List<object>();
+                if (insertIfMissing)
+                    Set(key, absoluteExpiration, list);
+            }
+            return list;
         }
 
         public void Dispose()
