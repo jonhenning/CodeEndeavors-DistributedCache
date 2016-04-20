@@ -18,12 +18,21 @@ namespace CodeEndeavors.Distributed.Cache.Client
 
         public static LoggingLevel LogLevel { get; set; }
 
+        public static int LoggingHandlerCount
+        {
+            get
+            {
+                return OnLoggingMessage != null ? OnLoggingMessage.GetInvocationList().Count() : 0;
+            }
+        }
+
         public static event Action<string> OnLoggingMessage;
 
         public static void Log(LoggingLevel level, string msg)
         {
             Log(level, msg, "");
         }
+
         public static void Log(LoggingLevel level, string msg, params object[] args)
         {
             if ((int)level <= (int)LogLevel && OnLoggingMessage != null)
