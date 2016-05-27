@@ -49,16 +49,19 @@ namespace CodeEndeavors.Distributed.Cache.Client
         /// <returns>results (either cached or looked up) from lookupFunc</returns>
         public static T GetCacheEntry<T>(string cacheName, string cacheKey, Func<T> lookupFunc)
         {
-            return GetCacheEntry<T>(cacheName, cacheKey, lookupFunc, null);
+            var e = GetCacheEntry<T>(cacheName, cacheKey, lookupFunc, null);
+            return (T)e;
         }
         public static T GetCacheEntry<T>(string cacheName, string cacheKey, Func<T> lookupFunc, dynamic monitorOptions)
         {
-            return GetCacheEntry(cacheName, (TimeSpan?)null, cacheKey, lookupFunc, monitorOptions);
+            var e = GetCacheEntry<T>(cacheName, (TimeSpan?)null, cacheKey, lookupFunc, monitorOptions);
+            return (T)e;
         }
 
         public static T GetCacheEntry<T>(string cacheName, TimeSpan? absoluteExpiration, string cacheKey, Func<T> lookupFunc)
         {
-            return GetCacheEntry<T>(cacheName, cacheKey, lookupFunc, null);
+            var e = GetCacheEntry<T>(cacheName, cacheKey, lookupFunc, null);
+            return (T)e;
         }
 
         public static T GetCacheEntry<T>(string cacheName, TimeSpan? absoluteExpiration, string cacheKey, Func<T> lookupFunc, dynamic monitorOptions)
