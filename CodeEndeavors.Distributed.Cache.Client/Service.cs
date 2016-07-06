@@ -60,7 +60,7 @@ namespace CodeEndeavors.Distributed.Cache.Client
 
         public static T GetCacheEntry<T>(string cacheName, TimeSpan? absoluteExpiration, string cacheKey, Func<T> lookupFunc)
         {
-            var e = GetCacheEntry<T>(cacheName, cacheKey, lookupFunc, null);
+            var e = GetCacheEntry<T>(cacheName, absoluteExpiration, cacheKey, lookupFunc, null);
             return (T)e;
         }
 
