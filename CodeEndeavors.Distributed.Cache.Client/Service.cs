@@ -226,6 +226,21 @@ namespace CodeEndeavors.Distributed.Cache.Client
             }
         }
 
+        public static void SetCacheEntry<T>(string cacheName, TimeSpan? absoluteExpiration, string cacheKey, string itemKey, T value, dynamic monitorOptions)
+        {
+            using (new Client.OperationTimer("SetCacheEntry: {0}:{1}:{2}", cacheName, cacheKey, itemKey))
+            {
+                var cache = getCache(cacheName);
+                if (cache != null)
+                {
+                    cache.Set<T>(cacheKey, itemKey, absoluteExpiration, value);
+                    //if (!string.IsNullOrEmpty(monitorOptions))
+                    if (monitorOptions != null)
+                        RegisterMonitor(cacheName, cacheKey, monitorOptions);
+                }
+            }
+        }
+
         /// <summary>
         /// Creates list if one does not already exist and adds item to it
         /// </summary>
