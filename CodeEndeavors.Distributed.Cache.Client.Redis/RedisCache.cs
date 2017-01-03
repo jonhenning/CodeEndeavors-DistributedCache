@@ -35,34 +35,40 @@ namespace CodeEndeavors.Distributed.Cache.Client.Redis
             return true;
         }
 
+        private string cacheKey(string key)
+        {
+            return _cacheName + ":" + key;
+        }
+
         public bool Exists(string key)
         {
-            return _multiplexer.GetDatabase().KeyExists(key);
+            return _multiplexer.GetDatabase().KeyExists(cacheKey(key));
         }
         public bool Exists(string key, string itemKey)
         {
             //todo: is this the most efficient?
-            return _multiplexer.GetDatabase().HashKeys(key).ToList().Exists(h => h == itemKey);
+            return _multiplexer.GetDatabase().HashKeys(cacheKey(key)).ToList().Exists(h => h == itemKey);
         }
 
         public T Get<T>(string key, T defaultValue)
         {
-            var type = _multiplexer.GetDatabase().KeyType(key);
+            var cKey = cacheKey(key);
+            var type = _multiplexer.GetDatabase().KeyType(cKey);
             if (type == RedisType.String)
             {
-                var value = _multiplexer.GetDatabase().StringGet(key);
+                var value = _multiplexer.GetDatabase().StringGet(cKey);
                 if (value.HasValue)
                     return value.ToString().ToObject<T>();
             }
             else if (type == RedisType.List)
             {
-                var value = _multiplexer.GetDatabase().ListRange(key);
+                var value = _multiplexer.GetDatabase().ListRange(cKey);
                 if (value != null)
                     return value.ToJson().ToObject<T>();    
             }
             else if (type == RedisType.Hash)
             {
-                var value = _multiplexer.GetDatabase().HashGetAll(key);
+                var value = _multiplexer.GetDatabase().HashGetAll(cKey);
                 if (value != null)
                     return value.ToJson().ToObject<T>();    
             }
@@ -78,7 +84,7 @@ namespace CodeEndeavors.Distributed.Cache.Client.Redis
 
         public T Get<T>(string key, string itemKey, T defaultValue)
         {
-            var value = _multiplexer.GetDatabase().HashGet(key, itemKey);
+            var value = _multiplexer.GetDatabase().HashGet(cacheKey(key), itemKey);
             if (value.HasValue)
                 return value.ToString().ToObject<T>();
             return defaultValue;
@@ -87,7 +93,7 @@ namespace CodeEndeavors.Distributed.Cache.Client.Redis
         public bool GetExists<T>(string key, out T entry)
         {
             entry = default(T);
-            var value = _multiplexer.GetDatabase().StringGet(key);
+            var value = _multiplexer.GetDatabase().StringGet(cacheKey(key));
             if (value.HasValue)
             {
                 entry = value.ToString().ToObject<T>();
@@ -99,7 +105,7 @@ namespace CodeEndeavors.Distributed.Cache.Client.Redis
         public bool GetExists<T>(string key, string itemKey, out T entry)
         {
             entry = default(T);
-            var value = _multiplexer.GetDatabase().HashGet(key, itemKey);
+            var value = _multiplexer.GetDatabase().HashGet(cacheKey(key), itemKey);
             if (value.HasValue)
             {
                 entry = value.ToString().ToObject<T>();
@@ -115,23 +121,24 @@ namespace CodeEndeavors.Distributed.Cache.Client.Redis
             if (!absoluteExpiration.HasValue && _connection.ContainsKey("absoluteExpiration"))
                 absoluteExpiration = _connection.GetSetting("absoluteExpiration", "'00:00:00'").ToObject<TimeSpan>();
 
-            _multiplexer.GetDatabase().StringSet(key, json, expiry: absoluteExpiration);
+            _multiplexer.GetDatabase().StringSet(cacheKey(key), json, expiry: absoluteExpiration);
         }
 
         public void ListPush<T>(string key, TimeSpan? absoluteExpiration, T[] values)
         {
+            var cKey = cacheKey(key);
             RedisValue[] redisValues = null;
             if (typeof(T) == typeof(string))
                 redisValues = Array.ConvertAll(values, item => (RedisValue)item.ToString());
             else
                 redisValues = Array.ConvertAll(values, item => (RedisValue)item.ToJson());
-            var listNotExist = !_multiplexer.GetDatabase().KeyExists(key);
-            _multiplexer.GetDatabase().ListRightPush(key, redisValues);
+            var listNotExist = !_multiplexer.GetDatabase().KeyExists(cKey);
+            _multiplexer.GetDatabase().ListRightPush(cKey, redisValues);
 
             if (!absoluteExpiration.HasValue && _connection.ContainsKey("absoluteExpiration"))
                 absoluteExpiration = _connection.GetSetting("absoluteExpiration", "'00:00:00'").ToObject<TimeSpan>();
             if (listNotExist && absoluteExpiration.HasValue)
-                _multiplexer.GetDatabase().KeyExpire(key, DateTime.Now.Add(absoluteExpiration.Value));
+                _multiplexer.GetDatabase().KeyExpire(cKey, DateTime.Now.Add(absoluteExpiration.Value));
         }
 
         /// <summary>
@@ -145,23 +152,24 @@ namespace CodeEndeavors.Distributed.Cache.Client.Redis
         /// <param name="value">value to cache</param>
         public void Set<T>(string key, string itemKey, TimeSpan? absoluteExpiration, T value)
         {
+            var cKey = cacheKey(key);
             var json = value.ToJson(false, "db");   //todo: this is really hacky that at this level we are imposing the serialization rules from resourcemanager here - db
-            var hashNotExist = !_multiplexer.GetDatabase().KeyExists(key);
-            _multiplexer.GetDatabase().HashSet(key, itemKey, json);
+            var hashNotExist = !_multiplexer.GetDatabase().KeyExists(cKey);
+            _multiplexer.GetDatabase().HashSet(cKey, itemKey, json);
 
             if (!absoluteExpiration.HasValue && _connection.ContainsKey("absoluteExpiration"))
                 absoluteExpiration = _connection.GetSetting("absoluteExpiration", "'00:00:00'").ToObject<TimeSpan>();
             if (hashNotExist && absoluteExpiration.HasValue)
-                _multiplexer.GetDatabase().KeyExpire(key, DateTime.Now.Add(absoluteExpiration.Value));
+                _multiplexer.GetDatabase().KeyExpire(cKey, DateTime.Now.Add(absoluteExpiration.Value));
         }
 
         public bool Remove(string key)
         {
-            return _multiplexer.GetDatabase().KeyDelete(key);
+            return _multiplexer.GetDatabase().KeyDelete(cacheKey(key));
         }
         public bool Remove(string key, string itemKey)
         {
-            return _multiplexer.GetDatabase().HashDelete(key, itemKey);
+            return _multiplexer.GetDatabase().HashDelete(cacheKey(key), itemKey);
         }
 
         public void Dispose()
