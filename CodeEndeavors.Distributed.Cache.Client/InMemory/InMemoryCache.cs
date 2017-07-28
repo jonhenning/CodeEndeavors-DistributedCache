@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using CodeEndeavors.Extensions;
 using System.Collections.Generic;
 using System.Runtime.Caching;
@@ -98,7 +99,9 @@ namespace CodeEndeavors.Distributed.Cache.Client.InMemory
 
         public bool Clear()
         {
-            MemoryCache.Default.Dispose();
+            var cacheKeys = MemoryCache.Default.Select(kvp => kvp.Key).ToList();
+            foreach (string cacheKey in cacheKeys)
+                MemoryCache.Default.Remove(cacheKey);
             return true;
         }
 
