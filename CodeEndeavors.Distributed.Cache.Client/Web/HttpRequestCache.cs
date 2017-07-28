@@ -109,6 +109,13 @@ namespace CodeEndeavors.Distributed.Cache.Client.Web
             return dict.Remove(itemKey);
         }
 
+        public bool Clear()
+        {
+            if (System.Web.HttpContext.Current.Items.Contains(_cacheName))
+                System.Web.HttpContext.Current.Items.Remove(_cacheName);
+            return true;
+        }
+
         private bool remove(string key)
         {
             return requestDictionary.Remove(key);

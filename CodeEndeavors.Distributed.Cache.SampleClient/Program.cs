@@ -139,6 +139,11 @@ namespace CodeEndeavors.Distributed.Cache.SampleClient
                             Console.WriteLine("Calling RemoveCacheEntry({0}, {1})", cacheName, key);
                             Console.WriteLine(Service.RemoveCacheEntry(cacheName, key));
                         }
+                        else if (command.StartsWith("clear"))
+                        {
+                            Console.WriteLine("Calling Clear()");
+                            Console.WriteLine(Service.Clear(cacheName));
+                        }
                         else if (command.StartsWith("getlookup "))
                         {
                             var key = command.Split(' ')[1];

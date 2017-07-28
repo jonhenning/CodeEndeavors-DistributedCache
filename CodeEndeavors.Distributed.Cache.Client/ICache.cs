@@ -30,6 +30,8 @@ namespace CodeEndeavors.Distributed.Cache.Client
         bool Remove(string key);
         bool Remove(string key, string itemKey);
 
+        bool Clear();
+
         //void Expire(string key);
 
     }

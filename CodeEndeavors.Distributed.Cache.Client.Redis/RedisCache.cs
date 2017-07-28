@@ -172,6 +172,21 @@ namespace CodeEndeavors.Distributed.Cache.Client.Redis
             return _multiplexer.GetDatabase().HashDelete(cacheKey(key), itemKey);
         }
 
+        public bool Clear()
+        {
+            //TODO: 
+            //var endpoints = _multiplexer.GetEndPoints();
+            //foreach (var endpoint in endpoints)
+            //{
+            //    var server = _multiplexer.GetServer(endpoint);
+            //    server.FlushDatabase();
+            //    //var keys = server.Keys();
+            //    //foreach (var key in keys)
+            //    //    Remove(key);
+            //}
+            return true;
+        }
+
         public void Dispose()
         {
             if (_multiplexer != null)

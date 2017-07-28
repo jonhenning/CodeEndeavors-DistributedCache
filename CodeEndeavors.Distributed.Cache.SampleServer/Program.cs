@@ -13,6 +13,7 @@ namespace CodeEndeavors.Distributed.Cache.SampleServer
     {
         static void Main(string[] args)
         {
+            HandleAssemblyResolve();
             var clientCount = 2;
             var signalRServerUrl = "http://localhost:8080";
             var redisConf = "redis.windows.conf";
@@ -84,6 +85,21 @@ namespace CodeEndeavors.Distributed.Cache.SampleServer
             //{
             //    Console.WriteLine(process.StandardOutput.ReadLine());
             //}
+        }
+
+        public static void HandleAssemblyResolve()
+        {
+            AppDomain.CurrentDomain.AssemblyResolve += CurrentDomain_AssemblyResolve;
+        }
+
+        public static System.Reflection.Assembly CurrentDomain_AssemblyResolve(object sender, System.ResolveEventArgs args)
+        {
+            var name = new System.Reflection.AssemblyName(args.Name);
+
+            if (name.Name != args.Name)
+                return System.Reflection.Assembly.LoadWithPartialName(name.Name);
+
+            return null;
         }
 
     }

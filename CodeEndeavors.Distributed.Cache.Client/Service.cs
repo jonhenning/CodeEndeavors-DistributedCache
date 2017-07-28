@@ -364,6 +364,20 @@ namespace CodeEndeavors.Distributed.Cache.Client
                 expireCacheItemEntry(cacheName, cacheKey, itemKey, true);
         }
 
+        public static bool Clear(string cacheName)
+        {
+            bool success;
+            using (new Client.OperationTimer("Clear: {0}", cacheName))
+            {
+                var cache = getCache(cacheName);
+                if (cache == null)
+                    return false;
+                success = cache.Clear();
+            }
+            Logging.Log(Logging.LoggingLevel.Minimal, "Cleared cache {0} ({1})", cacheName, success);
+            return success;
+        }
+
         /// <summary>
         /// Maintains a list of cachekeys dependent upon a type:typeKey entry
         /// </summary>

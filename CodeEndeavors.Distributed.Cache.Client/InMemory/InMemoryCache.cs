@@ -96,6 +96,12 @@ namespace CodeEndeavors.Distributed.Cache.Client.InMemory
             return dict.Remove(itemKey);
         }
 
+        public bool Clear()
+        {
+            MemoryCache.Default.Dispose();
+            return true;
+        }
+
         private bool remove(string key)
         {
             return MemoryCache.Default.Remove(key) != null;
