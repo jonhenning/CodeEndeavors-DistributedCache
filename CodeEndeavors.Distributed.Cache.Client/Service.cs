@@ -84,7 +84,7 @@ namespace CodeEndeavors.Distributed.Cache.Client
                         //cache.Set(cacheKey, item);
                         //SetCacheEntry(cacheName, cacheKey, item, monitorOptions);
                         SetCacheEntry<T>(cacheName, absoluteExpiration, cacheKey, item);
-                        Logging.Log(Logging.LoggingLevel.Minimal, "Retrieved cache entry {0}:{1}", cacheName, cacheKey);
+                        Logging.Log(Logging.LoggingLevel.Detailed, "Retrieved cache entry {0}:{1}", cacheName, cacheKey);
                     }
                     else
                         using (new Client.OperationTimer("GetCacheEntry (in-cache): {0}:{1}", cacheName, cacheKey))
@@ -135,7 +135,7 @@ namespace CodeEndeavors.Distributed.Cache.Client
                         using (new Client.OperationTimer("GetCacheEntry (lookup): {0}:{1}:{2}", cacheName, cacheKey, itemKey))
                             item = lookupFunc();
                         cache.Set(cacheKey, itemKey, absoluteExpiration, item);
-                        Logging.Log(Logging.LoggingLevel.Minimal, "Retrieved cache entry {0}:{1}:{2}", cacheName, cacheKey, itemKey);
+                        Logging.Log(Logging.LoggingLevel.Detailed, "Retrieved cache entry {0}:{1}:{2}", cacheName, cacheKey, itemKey);
                     }
                     else
                         using (new Client.OperationTimer("GetCacheEntry (in-cache): {0}:{1}:{2}", cacheName, cacheKey, itemKey))
@@ -185,7 +185,7 @@ namespace CodeEndeavors.Distributed.Cache.Client
                 foreach (var itemKey in newValues.Keys)
                     cache.Set(cacheKey, itemKey, absoluteExpiration, newValues[itemKey]);
                 ret.Merge(newValues, false);
-                Logging.Log(Logging.LoggingLevel.Minimal, "Retrieved cache entries {0} {1}", cacheName, keysToLookup.ToJson());
+                Logging.Log(Logging.LoggingLevel.Detailed, "Retrieved cache entries {0} {1}", cacheName, keysToLookup.ToJson());
             }
             return ret;
         }
@@ -311,7 +311,7 @@ namespace CodeEndeavors.Distributed.Cache.Client
                     return false;
                 success = cache.Remove(cacheKey);
             }
-            Logging.Log(Logging.LoggingLevel.Minimal, "Removed cache entry {0}:{1} ({2})", cacheName, cacheKey, success);
+            Logging.Log(Logging.LoggingLevel.Detailed, "Removed cache entry {0}:{1} ({2})", cacheName, cacheKey, success);
             return success;
         }
         /// <summary>
@@ -331,7 +331,7 @@ namespace CodeEndeavors.Distributed.Cache.Client
                     return false;
                 success = cache.Remove(cacheKey, itemKey);
             }
-            Logging.Log(Logging.LoggingLevel.Minimal, "Removed cache entry {0}:{1}:{2} ({3})", cacheName, cacheKey, itemKey, success);
+            Logging.Log(Logging.LoggingLevel.Detailed, "Removed cache entry {0}:{1}:{2} ({3})", cacheName, cacheKey, itemKey, success);
             return success;
         }
 
@@ -374,7 +374,7 @@ namespace CodeEndeavors.Distributed.Cache.Client
                     return false;
                 success = cache.Clear();
             }
-            Logging.Log(Logging.LoggingLevel.Minimal, "Cleared cache {0} ({1})", cacheName, success);
+            Logging.Log(Logging.LoggingLevel.Detailed, "Cleared cache {0} ({1})", cacheName, success);
             return success;
         }
 
