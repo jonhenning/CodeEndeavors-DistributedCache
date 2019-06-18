@@ -40,7 +40,7 @@ namespace CodeEndeavors.Distributed.Cache.Client
     {
         //bool Exists(string key, out bool isStale);
         bool GetExists<T>(string key, out bool isStale, out T entry);
-        //bool GetExists<T>(string key, string itemKey, out bool isStale, out T entry);
+        bool GetExists<T>(string key, string itemKey, out bool isStale, out T entry);
         //T Get<T>(string key, out bool isStale, T defaultValue);
     }
 

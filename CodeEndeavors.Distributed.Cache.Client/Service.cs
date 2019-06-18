@@ -97,11 +97,11 @@ namespace CodeEndeavors.Distributed.Cache.Client
                         Logging.Log(Logging.LoggingLevel.Detailed, "Retrieved cache entry {0}:{1}", cacheName, cacheKey);
                     }
                     else if (isStale)
-                        fetchUpdateToStaleCache(cacheName, absoluteExpiration, cacheKey, lookupFunc);
+                        fetchUpdateToStaleCache(cacheName, absoluteExpiration, cacheKey, null, lookupFunc);
                 }
             }
             else if (isStale)
-                fetchUpdateToStaleCache(cacheName, absoluteExpiration, cacheKey, lookupFunc);
+                fetchUpdateToStaleCache(cacheName, absoluteExpiration, cacheKey, null, lookupFunc);
 
             //always attempt to register monitor if we have one
             //for scenarios where we may be sharing a cache with another, they may have put the item in cache
@@ -137,22 +137,38 @@ namespace CodeEndeavors.Distributed.Cache.Client
 
             T item = default(T);
 
-            if (!cache.GetExists<T>(cacheKey, itemKey, out item))
+            bool exists = false;
+            bool isStale = false;
+            if (cache is IStaleCache)
+                exists = ((IStaleCache)cache).GetExists(cacheKey, itemKey, out isStale, out item);
+            else
+                exists = cache.GetExists(cacheKey, itemKey, out item);
+            if (!exists)
             {
                 lock (cache)
                 {
-                    if (!cache.Exists(cacheKey, itemKey))
+                    if (cache is IStaleCache)
+                        exists = ((IStaleCache)cache).GetExists(cacheKey, itemKey, out isStale, out item);
+                    else
+                        exists = cache.GetExists(cacheKey, itemKey, out item);
+
+                    if (!exists)
                     {
                         using (new Client.OperationTimer("GetCacheEntry (lookup): {0}:{1}:{2}", cacheName, cacheKey, itemKey))
                             item = lookupFunc();
                         cache.Set(cacheKey, itemKey, absoluteExpiration, item);
                         Logging.Log(Logging.LoggingLevel.Detailed, "Retrieved cache entry {0}:{1}:{2}", cacheName, cacheKey, itemKey);
                     }
-                    else
-                        using (new Client.OperationTimer("GetCacheEntry (in-cache): {0}:{1}:{2}", cacheName, cacheKey, itemKey))
-                            item = cache.Get(cacheKey, itemKey, default(T));
+                    else if (isStale)
+                        fetchUpdateToStaleCache(cacheName, absoluteExpiration, cacheKey, itemKey, lookupFunc);
+                    //else
+                    //    using (new Client.OperationTimer("GetCacheEntry (in-cache): {0}:{1}:{2}", cacheName, cacheKey, itemKey))
+                    //        item = cache.Get(cacheKey, itemKey, default(T));
                 }
             }
+                    else if (isStale)
+                        fetchUpdateToStaleCache(cacheName, absoluteExpiration, cacheKey, itemKey, lookupFunc);
+
             return item;
         }
         /// <summary>
@@ -249,6 +265,7 @@ namespace CodeEndeavors.Distributed.Cache.Client
                     //if (!string.IsNullOrEmpty(monitorOptions))
                     if (monitorOptions != null)
                         RegisterMonitor(cacheName, cacheKey, monitorOptions);
+                    _lastCacheWrite[cacheName + ":" + cacheKey] = DateTime.Now;
                 }
             }
         }
@@ -554,11 +571,11 @@ namespace CodeEndeavors.Distributed.Cache.Client
             }
         }
 
-        private static void fetchUpdateToStaleCache<T>(string cacheName, TimeSpan? absoluteExpiration, string cacheKey, Func<T> lookupFunc)
+        private static void fetchUpdateToStaleCache<T>(string cacheName, TimeSpan? absoluteExpiration, string cacheKey, string itemKey, Func<T> lookupFunc)
         {
             T item;
             //if we served up stale, we want to async get the data
-            var combinedKey = cacheName + ":" + cacheKey;
+            var combinedKey = cacheName + ":" + cacheKey + (!string.IsNullOrEmpty(itemKey) ? ":" + itemKey : "");
             DateTime? requestTime;
             _pendingLookups.TryGetValue(combinedKey, out requestTime);
             if (!requestTime.HasValue)  //if we are not already updating
@@ -568,7 +585,7 @@ namespace CodeEndeavors.Distributed.Cache.Client
                 //launch lookup async
                 Task.Run(() =>
                 {
-                    using (new Client.OperationTimer("ASYNC GetCacheEntry (lookup): {0}:{1}", cacheName, cacheKey))
+                    using (new Client.OperationTimer("ASYNC GetCacheEntry (lookup): {0}", combinedKey))
                         item = lookupFunc();
 
                     _pendingLookups.TryRemove(combinedKey, out requestTime);
@@ -576,13 +593,17 @@ namespace CodeEndeavors.Distributed.Cache.Client
                     _lastCacheWrite.TryGetValue(combinedKey, out lastWriteTime);
                     if (requestTime.HasValue && (!lastWriteTime.HasValue || requestTime > lastWriteTime))   //verify we haven't already updated
                     {
-                        SetCacheEntry<T>(cacheName, absoluteExpiration, cacheKey, item);
-                        Logging.Log(Logging.LoggingLevel.Detailed, "Wrote async cache entry {0}:{1}", cacheName, cacheKey);
+                        if (string.IsNullOrEmpty(itemKey))
+                            SetCacheEntry<T>(cacheName, absoluteExpiration, cacheKey, item);
+                        else
+                            SetCacheEntry<T>(cacheName,  absoluteExpiration, cacheKey, itemKey, item, null);
+                        Logging.Log(Logging.LoggingLevel.Detailed, "Wrote async cache entry {0}", combinedKey);
                     }
                     else
-                        Logging.Log(Logging.LoggingLevel.Detailed, "NOT WRITING Async lookup {0}:{1} - request:{2} write:{3}", cacheName, cacheKey, requestTime, lastWriteTime);
+                        Logging.Log(Logging.LoggingLevel.Detailed, "NOT WRITING Async lookup {0} - request:{1} write:{2}", combinedKey, requestTime, lastWriteTime);
                 });
             }
+
         }
 
         private static ICache getCache(string name)
