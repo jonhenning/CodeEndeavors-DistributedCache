@@ -25,6 +25,9 @@ namespace CodeEndeavors.Distributed.Cache.Client
         private static ConcurrentDictionary<string, INotifier> _notifiers = new ConcurrentDictionary<string, INotifier>();
         private static ConcurrentDictionary<string, IMonitor> _monitors = new ConcurrentDictionary<string, IMonitor>();
 
+        private static ConcurrentDictionary<string, DateTime?> _pendingLookups = new ConcurrentDictionary<string, DateTime?>();
+        private static ConcurrentDictionary<string, DateTime?> _lastCacheWrite = new ConcurrentDictionary<string, DateTime?>(); //optimistic locking
+
         /// <summary>
         /// Global event handling all Notifier's events
         /// </summary>
@@ -72,25 +75,33 @@ namespace CodeEndeavors.Distributed.Cache.Client
                 return lookupFunc();
 
             T item = default(T);
-
-            if (!cache.GetExists<T>(cacheKey, out item))
+            bool exists = false;
+            bool isStale = false;
+            if (cache is IStaleCache)
+                exists = ((IStaleCache)cache).GetExists(cacheKey, out isStale, out item);
+            else 
+                exists = cache.GetExists(cacheKey, out item);
+            if (!exists)
             {
                 lock (cache)
                 {
-                    if (!cache.Exists(cacheKey))
+                    if (cache is IStaleCache)
+                        exists = ((IStaleCache)cache).GetExists(cacheKey, out isStale, out item);
+                    else
+                        exists = cache.GetExists(cacheKey, out item);
+                    if (!exists)
                     {
                         using (new Client.OperationTimer("GetCacheEntry (lookup): {0}:{1}", cacheName, cacheKey))
                             item = lookupFunc();
-                        //cache.Set(cacheKey, item);
-                        //SetCacheEntry(cacheName, cacheKey, item, monitorOptions);
                         SetCacheEntry<T>(cacheName, absoluteExpiration, cacheKey, item);
                         Logging.Log(Logging.LoggingLevel.Detailed, "Retrieved cache entry {0}:{1}", cacheName, cacheKey);
                     }
-                    else
-                        using (new Client.OperationTimer("GetCacheEntry (in-cache): {0}:{1}", cacheName, cacheKey))
-                            item = cache.Get(cacheKey, default(T));
+                    else if (isStale)
+                        fetchUpdateToStaleCache(cacheName, absoluteExpiration, cacheKey, lookupFunc);
                 }
             }
+            else if (isStale)
+                fetchUpdateToStaleCache(cacheName, absoluteExpiration, cacheKey, lookupFunc);
 
             //always attempt to register monitor if we have one
             //for scenarios where we may be sharing a cache with another, they may have put the item in cache
@@ -222,6 +233,7 @@ namespace CodeEndeavors.Distributed.Cache.Client
                     //if (!string.IsNullOrEmpty(monitorOptions))
                     if (monitorOptions != null)
                         RegisterMonitor(cacheName, cacheKey, monitorOptions);
+                    _lastCacheWrite[cacheName + ":" + cacheKey] = DateTime.Now;
                 }
             }
         }
@@ -539,6 +551,37 @@ namespace CodeEndeavors.Distributed.Cache.Client
                 _monitors = new ConcurrentDictionary<string, IMonitor>();
 
                 Logging.Log(Logging.LoggingLevel.Minimal, "Disposed of all resources");
+            }
+        }
+
+        private static void fetchUpdateToStaleCache<T>(string cacheName, TimeSpan? absoluteExpiration, string cacheKey, Func<T> lookupFunc)
+        {
+            T item;
+            //if we served up stale, we want to async get the data
+            var combinedKey = cacheName + ":" + cacheKey;
+            DateTime? requestTime;
+            _pendingLookups.TryGetValue(combinedKey, out requestTime);
+            if (!requestTime.HasValue)  //if we are not already updating
+            {
+                _pendingLookups[combinedKey] = DateTime.Now; //we need optimistic locking
+
+                //launch lookup async
+                Task.Run(() =>
+                {
+                    using (new Client.OperationTimer("ASYNC GetCacheEntry (lookup): {0}:{1}", cacheName, cacheKey))
+                        item = lookupFunc();
+
+                    _pendingLookups.TryRemove(combinedKey, out requestTime);
+                    DateTime? lastWriteTime;
+                    _lastCacheWrite.TryGetValue(combinedKey, out lastWriteTime);
+                    if (requestTime.HasValue && (!lastWriteTime.HasValue || requestTime > lastWriteTime))   //verify we haven't already updated
+                    {
+                        SetCacheEntry<T>(cacheName, absoluteExpiration, cacheKey, item);
+                        Logging.Log(Logging.LoggingLevel.Detailed, "Wrote async cache entry {0}:{1}", cacheName, cacheKey);
+                    }
+                    else
+                        Logging.Log(Logging.LoggingLevel.Detailed, "NOT WRITING Async lookup {0}:{1} - request:{2} write:{3}", cacheName, cacheKey, requestTime, lastWriteTime);
+                });
             }
         }
 
