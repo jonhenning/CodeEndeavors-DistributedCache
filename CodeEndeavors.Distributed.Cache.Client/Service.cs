@@ -166,8 +166,8 @@ namespace CodeEndeavors.Distributed.Cache.Client
                     //        item = cache.Get(cacheKey, itemKey, default(T));
                 }
             }
-                    else if (isStale)
-                        fetchUpdateToStaleCache(cacheName, absoluteExpiration, cacheKey, itemKey, lookupFunc);
+            else if (isStale)
+                fetchUpdateToStaleCache(cacheName, absoluteExpiration, cacheKey, itemKey, lookupFunc);
 
             return item;
         }
@@ -198,10 +198,28 @@ namespace CodeEndeavors.Distributed.Cache.Client
             {
                 T item = default(T);
 
-                if (cache == null || !cache.GetExists<T>(cacheKey, itemKey, out item))
+                if (cache == null)
                     keysToLookup.Add(itemKey);
                 else
-                    ret[itemKey] = item;
+                {
+                    bool exists = false;
+                    bool isStale = false;
+
+                    if (cache is IStaleCache)
+                        exists = ((IStaleCache)cache).GetExists(cacheKey, itemKey, out isStale, out item);
+                    else
+                        exists = cache.GetExists(cacheKey, itemKey, out item);
+
+                    if (!exists)
+                        keysToLookup.Add(itemKey);
+                    else
+                    {
+                        ret[itemKey] = item;
+                        if (isStale)
+                            fetchUpdateToStaleCache(cacheName, absoluteExpiration, cacheKey, itemKey, lookupFunc);
+                    }
+
+                }
             }
             if (keysToLookup.Count > 0)
             {
@@ -603,8 +621,44 @@ namespace CodeEndeavors.Distributed.Cache.Client
                         Logging.Log(Logging.LoggingLevel.Detailed, "NOT WRITING Async lookup {0} - request:{1} write:{2}", combinedKey, requestTime, lastWriteTime);
                 });
             }
-
         }
+
+        //this is duplicate from above...  consider refactoring
+        private static void fetchUpdateToStaleCache<T>(string cacheName, TimeSpan? absoluteExpiration, string cacheKey, string itemKey, Func<List<string>, Dictionary<string, T>> lookupFunc)
+        {
+            Dictionary<string, T> item;
+            //if we served up stale, we want to async get the data
+            var combinedKey = cacheName + ":" + cacheKey + (!string.IsNullOrEmpty(itemKey) ? ":" + itemKey : "");
+            DateTime? requestTime;
+            _pendingLookups.TryGetValue(combinedKey, out requestTime);
+            if (!requestTime.HasValue)  //if we are not already updating
+            {
+                _pendingLookups[combinedKey] = DateTime.Now; //we need optimistic locking
+
+                //launch lookup async
+                Task.Run(() =>
+                {
+                    using (new Client.OperationTimer("ASYNC GetCacheEntry (lookup): {0}", combinedKey))
+                        item = lookupFunc(new List<string>() { itemKey });
+
+                    _pendingLookups.TryRemove(combinedKey, out requestTime);
+                    DateTime? lastWriteTime;
+                    _lastCacheWrite.TryGetValue(combinedKey, out lastWriteTime);
+                    if (requestTime.HasValue && (!lastWriteTime.HasValue || requestTime > lastWriteTime))   //verify we haven't already updated
+                    {
+                        if (string.IsNullOrEmpty(itemKey))
+                            SetCacheEntry<T>(cacheName, absoluteExpiration, cacheKey, item.Values.First());
+                        else
+                            SetCacheEntry<T>(cacheName, absoluteExpiration, cacheKey, itemKey, item.Values.First(), null);
+                        Logging.Log(Logging.LoggingLevel.Detailed, "Wrote async cache entry {0}", combinedKey);
+                    }
+                    else
+                        Logging.Log(Logging.LoggingLevel.Detailed, "NOT WRITING Async lookup {0} - request:{1} write:{2}", combinedKey, requestTime, lastWriteTime);
+                });
+            }
+        }
+
+
 
         private static ICache getCache(string name)
         {
