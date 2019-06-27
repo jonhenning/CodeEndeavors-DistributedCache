@@ -603,6 +603,7 @@ namespace CodeEndeavors.Distributed.Cache.Client
                 //launch lookup async
                 Task.Run(() =>
                 {
+                    System.Threading.Thread.Sleep(TimeSpan.FromSeconds(5));
                     using (new Client.OperationTimer("ASYNC GetCacheEntry (lookup): {0}", combinedKey))
                         item = lookupFunc();
 
@@ -638,6 +639,7 @@ namespace CodeEndeavors.Distributed.Cache.Client
                 //launch lookup async
                 Task.Run(() =>
                 {
+                    System.Threading.Thread.Sleep(TimeSpan.FromSeconds(5));
                     using (new Client.OperationTimer("ASYNC GetCacheEntry (lookup): {0}", combinedKey))
                         item = lookupFunc(new List<string>() { itemKey });
 
