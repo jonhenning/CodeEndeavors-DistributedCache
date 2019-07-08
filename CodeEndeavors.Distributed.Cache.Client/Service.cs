@@ -130,7 +130,14 @@ namespace CodeEndeavors.Distributed.Cache.Client
 
         public static T GetCacheEntry<T>(string cacheName, TimeSpan? absoluteExpiration, string cacheKey, string itemKey, Func<T> lookupFunc)
         {
+            var isStale = false;
+            return GetCacheEntry<T>(cacheName, absoluteExpiration, cacheKey, itemKey, lookupFunc, out isStale);
+        }
+
+        public static T GetCacheEntry<T>(string cacheName, TimeSpan? absoluteExpiration, string cacheKey, string itemKey, Func<T> lookupFunc, out bool isStale)
+        {
             var cache = getCache(cacheName);
+            isStale = false;
 
             if (cache == null)  //not using cache
                 return lookupFunc();
@@ -138,7 +145,6 @@ namespace CodeEndeavors.Distributed.Cache.Client
             T item = default(T);
 
             bool exists = false;
-            bool isStale = false;
             if (cache is IStaleCache)
                 exists = ((IStaleCache)cache).GetExists(cacheKey, itemKey, out isStale, out item);
             else
@@ -189,10 +195,16 @@ namespace CodeEndeavors.Distributed.Cache.Client
 
         public static Dictionary<string, T> GetCacheEntry<T>(string cacheName, TimeSpan? absoluteExpiration, string cacheKey, List<string> itemKeys, Func<List<string>, Dictionary<string, T>> lookupFunc)
         {
+            bool isStale = false;
+            return GetCacheEntry<T>(cacheName, absoluteExpiration, cacheKey, itemKeys, lookupFunc, out isStale);
+        }
+        public static Dictionary<string, T> GetCacheEntry<T>(string cacheName, TimeSpan? absoluteExpiration, string cacheKey, List<string> itemKeys, Func<List<string>, Dictionary<string, T>> lookupFunc, out bool isStale)
+        {
             var ret = new Dictionary<string, T>();
 
             var cache = getCache(cacheName);
             var keysToLookup = new List<string>();
+            isStale = false;
 
             foreach (var itemKey in itemKeys)
             {
@@ -203,7 +215,7 @@ namespace CodeEndeavors.Distributed.Cache.Client
                 else
                 {
                     bool exists = false;
-                    bool isStale = false;
+                    isStale = false;
 
                     if (cache is IStaleCache)
                         exists = ((IStaleCache)cache).GetExists(cacheKey, itemKey, out isStale, out item);
