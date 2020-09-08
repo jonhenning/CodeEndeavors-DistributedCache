@@ -11,3 +11,4 @@ obj/
 packages/
 Documentation/_build/
 Documentation/publish/
+.vs/

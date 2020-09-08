@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 2013
-VisualStudioVersion = 12.0.40629.0
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.29609.76
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CodeEndeavors.Distributed.Cache.Server", "CodeEndeavors.Distributed.Cache.Server\CodeEndeavors.Distributed.Cache.Server.csproj", "{48EFF0F3-2856-43CD-A150-E3BD0D49501F}"
 EndProject
@@ -20,14 +20,6 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CodeEndeavors.Distributed.Cache.SampleServer", "CodeEndeavors.Distributed.Cache.SampleServer\CodeEndeavors.Distributed.Cache.SampleServer.csproj", "{F2B353A8-5A01-4505-815A-9EB30003CEC3}"
 	ProjectSection(ProjectDependencies) = postProject
 		{788A354D-FCE7-4387-B095-C500FC7F3E91} = {788A354D-FCE7-4387-B095-C500FC7F3E91}
-	EndProjectSection
-EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".nuget", ".nuget", "{F9BBF45E-DACF-4237-801E-6B448A4B0D1F}"
-	ProjectSection(SolutionItems) = preProject
-		.nuget\NuGet.Config = .nuget\NuGet.Config
-		.nuget\NuGet.exe = .nuget\NuGet.exe
-		.nuget\NuGet.targets = .nuget\NuGet.targets
-		.nuget\packages.config = .nuget\packages.config
 	EndProjectSection
 EndProject
 Project("{E24C65DC-7377-472B-9ABA-BC803B73C61A}") = "Documentation", "http://localhost:56799", "{4B26C58C-F44D-49CC-83F5-BFEA47E4A718}"
@@ -97,5 +89,8 @@ Global
 	GlobalSection(NestedProjects) = preSolution
 		{788A354D-FCE7-4387-B095-C500FC7F3E91} = {0F4CD76C-BCB6-44D2-B125-CF5D28F025E5}
 		{F2B353A8-5A01-4505-815A-9EB30003CEC3} = {0F4CD76C-BCB6-44D2-B125-CF5D28F025E5}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {98E45BFA-AAC8-43A9-BE0C-1C196E951B06}
 	EndGlobalSection
 EndGlobal
