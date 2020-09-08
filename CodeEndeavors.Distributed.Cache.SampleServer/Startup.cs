@@ -14,9 +14,7 @@ namespace CodeEndeavors.Distributed.Cache.SampleServer
                 routeTemplate: "api/{controller}/{id}",
                 defaults: new { id = RouteParameter.Optional }
             );
-
             app.UseWebApi(config);
-
             CodeEndeavors.Distributed.Cache.Server.Service.Register(app, config);
 
         }
