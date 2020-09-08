@@ -2,7 +2,7 @@
 <package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
     <metadata>
         <id>CodeEndeavors.Distributed.Cache.Server</id>
-        <version>2.0</version>
+        <version>2.1</version>
         <title>Code Endeavors Distributed Cache Server</title>
         <authors>Jon Henning</authors>
         <owners>Code Endeavors Inc.</owners>
@@ -11,7 +11,7 @@
         <requireLicenseAcceptance>false</requireLicenseAcceptance>
         <description>A plugin interface to caching including remote cache expiration</description>
         <dependencies>
-	        <dependency id="CodeEndeavors.Extensions" version="2.0.5" />
+	        <dependency id="CodeEndeavors.Extensions" version="2.1.62" />
         </dependencies>
         <frameworkAssemblies>
         </frameworkAssemblies>
