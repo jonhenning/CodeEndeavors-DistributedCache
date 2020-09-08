@@ -20,8 +20,11 @@ steps:
 
 - task: NuGetCommand@2
   inputs:
+    command: 'restore'
     restoreSolution: '$(solution)'
-
+    feedsToUse: 'config'
+    nugetConfigPath: 'nuget.config'
+    
 - task: Assembly-Info-NetFramework@2
   inputs:
     Path: '$(Build.SourcesDirectory)'
