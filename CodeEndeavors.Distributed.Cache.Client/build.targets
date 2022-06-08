@@ -7,7 +7,7 @@
         <CommonLibDir>$(RootDir)\lib</CommonLibDir>
         <CommonBinDir>$(CommonLibDir)</CommonBinDir>
         <MSBuildTasksDir>$(CommonBinDir)\MSBuildTasks</MSBuildTasksDir>
-        <DeployDir>C:\dev\nnr.vnext\PowerNET.vNext\Web\sparrow\import.nnrportal.com\Web\bin</DeployDir>
+        <DeployDir></DeployDir>
     </PropertyGroup>
     <ItemGroup>
         <DeployDirs Include="$(DeployDir)" />
