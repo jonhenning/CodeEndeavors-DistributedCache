@@ -5,6 +5,8 @@
 
 name: 2.1.$(Rev:r)
 
+pr: none
+
 pool:
   vmImage: 'windows-2019'
 
