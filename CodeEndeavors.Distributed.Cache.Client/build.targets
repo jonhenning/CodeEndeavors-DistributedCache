@@ -7,7 +7,7 @@
         <CommonLibDir>$(RootDir)\lib</CommonLibDir>
         <CommonBinDir>$(CommonLibDir)</CommonBinDir>
         <MSBuildTasksDir>$(CommonBinDir)\MSBuildTasks</MSBuildTasksDir>
-        <DeployDir></DeployDir>
+        <DeployDir>C:\dev\nnr.vnext\PowerNET.vNext\Services\ladybell\general.apibuild.nnrportal.com\_updates</DeployDir>
     </PropertyGroup>
     <ItemGroup>
         <DeployDirs Include="$(DeployDir)" />
@@ -42,6 +42,6 @@
 
     <Target Name="Deploy" Condition="Exists('$(DeployDir)')">
         <Copy SourceFiles="$(RedistDir)\$(MSBuildProjectName).zip" DestinationFolder="%(DeployDirs.FullPath)" SkipUnchangedFiles="false" />
-        <Unzip TargetDirectory="%(DeployDirs.FullPath)" ZipFileName="%(DeployDirs.FullPath)\$(MSBuildProjectName).zip" />
+        <!--<Unzip TargetDirectory="%(DeployDirs.FullPath)" ZipFileName="%(DeployDirs.FullPath)\$(MSBuildProjectName).zip" />-->
     </Target>
 </Project>
